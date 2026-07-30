@@ -4,6 +4,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "Muika-After-Story",
   description: "打破第四面墙的 AI 伴侣 — 文档站",
+  cleanUrls: true,
   head: [
     ['link', { rel: 'icon', href: '/favicon.png' }],       // 站点图标
   ],
