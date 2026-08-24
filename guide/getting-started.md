@@ -74,7 +74,7 @@ IPC_SECRET=your-secret-here
   provider: openai_compatible
   model: deepseek-chat
   api_key: sk-your-api-key-here
-  base_url: https://api.deepseek.com
+  api_host: https://api.deepseek.com
   default: true
 ```
 
