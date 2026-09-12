@@ -1,6 +1,6 @@
 # 插件开发
 
-Muika-After-Story 的插件系统允许你以 Python 包的形式扩展 Muika 的能力。插件可以注册**命令**（用户可直接调用的 `.xxx` 指令）和**工具**（Butler Agent 可调用的函数）。
+Muika-After-Story 的插件系统允许你以 Python 包的形式扩展 Muika 的能力。插件可以注册**命令**（用户可直接调用的 `.xxx` 指令）和**工具**（Agent 可调用的函数）。
 
 其实就和你写 Nonebot 的插件是一样的（）
 
@@ -13,7 +13,7 @@ plugins/
 └── my-plugin/
     ├── __init__.py      # 插件入口，暴露 metadata
     ├── commands.py      # 命令注册
-    └── tools.py         # Butler 工具注册
+    └── tools.py         # Agent 工具注册
 ```
 
 ## PluginMetadata
@@ -91,7 +91,7 @@ async def handle(arg: str):
 
 ### 工具插件
 
-注册 Butler Agent 可调用的函数。详见 [工具开发](/develop/func-call-dev)。
+注册 Agent 可调用的函数。详见 [工具开发](/develop/func-call-dev)。
 
 ```python
 from muika.plugin.func_call import on_function_call
@@ -118,5 +118,5 @@ for plugin in plugins:
 
 1. **一个插件一个目录**：不要在一个文件中混合多个插件
 2. **最小化依赖**：插件应尽可能少地依赖第三方包
-3. **处理异常**：工具函数中的异常会被 Butler 捕获并报告，不要让它 crash 整个 Core
+3. **处理异常**：工具函数中的异常会被 Agent 捕获并报告，不要让它 crash 整个 Core
 4. **尊重安全边界**：工具函数无法绕过 `FS_ALLOWED_PATHS` 和 `ENABLE_FILE_WRITE` 等全局安全开关

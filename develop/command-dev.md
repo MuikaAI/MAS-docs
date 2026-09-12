@@ -103,7 +103,7 @@ await register.finish("第一段", "第二段")
 | `MemoryManager` | 记忆管理器 |
 | `Executor` | 消息发送器 |
 | `TopicManager` | 话题管理器 |
-| `ButlerAgent` | 管家 Agent |
+| `Agent` | 行动半身 |
 
 ```python
 from muika.core.state import MuikaState
@@ -113,7 +113,7 @@ from muika.core.memory import MemoryManager
 async def handler(state: MuikaState, memory: MemoryManager):
     await register.finish(
         f"当前情绪: mood={state.mood}, loneliness={state.loneliness:.2f}",
-        f"记忆条数: {len(memory.records)}"
+        f"记忆条数: {len(memory.facts)}"
     )
 ```
 

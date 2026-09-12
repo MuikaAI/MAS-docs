@@ -14,18 +14,18 @@
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `BUTLER_MODEL` | `str`（可选） | `""` | 管家 Agent（Butler）使用的模型配置名。留空则与核心模型共用。 |
-| `SESSION_SUMMARIZE_MODEL` | `str`（可选） | `""` | 会话总结 Agent 使用的模型配置名。留空则使用管家模型。 |
+| `AGENT_MODEL` | `str`（可选） | `""` | 行动与记忆检索使用的模型配置名。留空则与核心模型共用；旧键 `BUTLER_MODEL` 仍可读取。 |
+| `SESSION_SUMMARIZE_MODEL` | `str`（可选） | `""` | 工作摘要和日记整理使用的模型配置名。留空则使用 Agent 模型。 |
 
 ### 模型选型建议
 
-项目中有三个角色各自使用 LLM，选型侧重点不同：
+对话、行动和记忆整理使用 LLM 的侧重点不同，它们服务于同一个 Muika：
 
 | 角色 | 推荐模型 | 选型要点 |
 |------|---------|---------|
 | **核心模型**（Brain） | **DeepSeek-V4 Pro (High)** <sup>1</sup> | 负责人格表达与角色扮演，对文风、情感细腻度要求极高。**避免使用 Qwen 系列** <sup>2</sup>。 |
-| **会话总结模型** | 与核心模型**相同配置**或同系列较低参数模型（如 DeepSeek-V4 Flash） | 总结需要理解对话中的人设细节和情感基调，模型需与核心模型对齐——否则摘要会丢失 Muika 的语气特征。 |
-| **管家模型**（Butler） | 工具调用能力强的模型，或高性价比模型 | Butler 的核心任务是**工具选择与执行**，需要较强的指令遵循和 Function Call 能力。参数太低会导致 Agent 返回结果不全面（遗漏关键信息或工具调用不完整）。 |
+| **工作摘要与日记模型** | 与核心模型**相同配置**或同系列较低参数模型（如 DeepSeek-V4 Flash） | 总结需要理解对话中的人设细节和情感基调，模型需与核心模型对齐——否则摘要会丢失 Muika 的语气特征。 |
+| **行动模型**（Agent） | 工具调用能力强的模型，或高性价比模型 | Agent 的核心任务是**工具选择与执行**，需要较强的指令遵循和 Function Call 能力。参数太低会导致 Agent 返回结果不全面（遗漏关键信息或工具调用不完整）。 |
 
 ::: warning <sup>1</sup> DeepSeek 幻觉记忆
 DeepSeek 存在**幻觉记忆**问题——模型可能在对话中凭空编造不存在的过往事件，尽管我们已通过提示工程尽量缓解，该问题仍会偶发。
@@ -54,9 +54,14 @@ Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `PERSONA_TEMPLATE` | `str` | `"Muika.md.jinja2"` | 默认人格模板文件名。加载自 `muika/builtin_templates/` 或自定义 `templates/` 目录。 |
-| `MAX_MEMORY_RECORDS` | `int` | `100` | 最大记忆记录数（最近 N 条对话）。 |
 | `INPUT_TIMEOUT` | `int` | `0` | 输入等待超时（秒）。Bot 端用于合并用户在短时间内连续发送的多条消息，0 表示不合并。 |
-| `ENABLE_EMBEDDING_CACHE` | `bool` | `true` | 启用嵌入缓存。 |
+
+### 日记整理
+
+`ENABLE_AUTO_REFLECTION=true` 默认在本地时间 05:00 后的空闲阶段整理前一天。
+启动和空闲时会补做积压日期；`.reflect` 可以手动整理今天已有素材。
+此开关与自我修改开关无关。`REFLECTION_COOLDOWN_HOURS` 已停用。
+`MAX_MEMORY_RECORDS`、`AGENT_TOOL_CONTEXT_CHARS` 也已停用；改用每模型的 `context_window`。
 
 ### 路径配置
 
@@ -76,8 +81,11 @@ Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `LOG_LEVEL` | `str` | `"INFO"` | 日志等级。支持 `DEBUG`、`INFO`、`WARNING`、`ERROR`。 |
+| `LOG_LEVEL` | `str` | `"INFO"` | 控制台日志阈值。INFO 显示系统活动；文件日志继续保存 DEBUG 诊断。 |
 | `MAS_LOG_ONLY` | `bool` | `false` | 仅输出 Muika 相关日志，不输出 NoneBot 核心日志。调试 Muika 自身行为时有用。 |
+
+INFO 包含模块加载、非 `time_tick` 事件，以及 RSS、日记和行动任务的简短进展。
+`time_tick`、请求耗时、token 用量、工具参数和执行细节保留在 DEBUG。
 
 ### 平台相关
 
@@ -91,8 +99,8 @@ Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除
 # 必填
 MASTER_ID=123456789
 
-# 模型配置名
-DEFAULT_MODEL=deepseek
+# 行动模型配置名；主人格默认模型在 models.yml 中用 default: true 设置
+AGENT_MODEL=deepseek
 
 # 文件系统白名单
 FS_ALLOWED_PATHS=["D:/Documents", "D:/Pictures"]

@@ -100,7 +100,7 @@ python core_main.py
 ```
 :::
 
-Core 进程负责 AI 逻辑——包括大脑（MuikaBrain）、管家（ButlerAgent）、记忆系统和事件循环。启动后会在 `ws://127.0.0.1:8765/ws` 等待 Bot 连接。
+Core 进程负责 AI 逻辑——包括大脑（MuikaBrain）、行动半身（Agent）、记忆系统和事件循环。启动后会在 `ws://127.0.0.1:8765/ws` 等待 Bot 连接。
 
 ### 启动 Bot（身体）
 
@@ -136,8 +136,8 @@ Bot 进程负责对接聊天平台，连接 Core 后将用户消息转发给 Cor
 | `.model list` | 查看可切换的模型列表 |
 | `.model deepseek` | 切换到指定的模型 |
 | `.debug state` | 查看 Muika 当前的情绪状态 |
-| `.session end` | 手动结束当前会话 |
-| `.usage` | 查看 Token 用量统计 |
+| `.session new` | 开始新会话，保留经历和持续状态 |
+| `.usage [today\|week\|total]` | 按模型汇总今天、近一周或全部历史用量 |
 
 ## 下一步
 

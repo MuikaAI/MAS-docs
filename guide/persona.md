@@ -24,8 +24,8 @@ Muika 的个性和说话风格由 Jinja2 模板定义。你可以通过修改模
 | `is_expand_topic` | `bool` | 是否为话题展开模式 |
 | `is_first_session` | `bool` | 是否为首次会话（而非 Resume） |
 | `absence_bucket` | `str` | 离线时长段：`short`、`medium`、`long` |
-| `memory_context` | `str` | 拼接好的记忆上下文文本（四层记忆的注入结果） |
-| `injected_preferences` | `str` | 当前匹配到的用户偏好记录 |
+| `memory_context` | `str` | 已知的最早互动日期，以及按回顾权重选出的原子事实摘要 |
+| `recalled_memories` | `RecallResult`（可空） | 相关记忆的 `hits`、来源引用和检索降级标记 `degraded` |
 | `state` | `MuikaState` | 当前情绪状态对象（mood、loneliness、boredom 等） |
 
 ## 模板示例
@@ -56,8 +56,17 @@ Muika 的个性和说话风格由 Jinja2 模板定义。你可以通过修改模
 {% endif %}
 
 {% if memory_context %}
-## 你记得这些关于对方的事情
+## 你记得的经历与关系
 {{ memory_context }}
+{% endif %}
+
+{% if recalled_memories %}
+{% if recalled_memories.degraded %}
+语义检索暂不可用，以下内容来自日期和关键词匹配。
+{% endif %}
+{% for hit in recalled_memories.hits %}
+- [{{ hit.ref }} | {{ hit.occurred_at }}] {{ hit.content }}
+{% endfor %}
 {% endif %}
 ```
 
@@ -68,7 +77,7 @@ Muika 的个性和说话风格由 Jinja2 模板定义。你可以通过修改模
 - **首次/复归**：`{% if is_first_session %}` 控制首次问候语 vs 回归问候语
 - **离线时长**：`absence_bucket` 可取值 `short`（短）、`medium`（中）、`long`（长），控制问候的亲密程度
 - **时间段语气**：Brain 在构建系统提示时会注入时间感知的语调指令（深夜 → 安静喃喃、早晨 → 轻柔清醒）
-- **偏好注入**：`injected_preferences` 是 Butler 从 PREFERENCE 层中匹配到的相关偏好
+- **记忆检索**：`recalled_memories.hits` 包含相关日记、事实、原文片段及来源 ID
 
 ## 创建自定义模板
 
@@ -77,4 +86,6 @@ Muika 的个性和说话风格由 Jinja2 模板定义。你可以通过修改模
 3. 在 `.env` 中设置 `PERSONA_TEMPLATE=mine.jinja2`
 4. 重启 Core 生效
 
-> **注意**：模板中不要删除 `{{ memory_context }}` 和 `{{ injected_preferences }}` 变量——它们是记忆系统注入的入口点。
+> **注意**：模板中不要删除 `{{ memory_context }}` 和 `recalled_memories.hits` 变量——它们是记忆系统注入的入口点。
+
+自定义模板不会自动覆盖。请参考内置模板添加私有 `<state>` 更新和 `<agent intention_id="...">` 意愿关联说明。

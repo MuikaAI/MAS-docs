@@ -1,200 +1,159 @@
-# 记忆系统
+# 记忆、日记与持续状态
 
-Muika-After-Story 的四层记忆系统是角色「真实感」的基础。不同层的记忆有不同的注入策略和生命周期，共同构建了 Muika 对用户的持续认知。
+Muika 保存经历，再在空闲时理解这些经历。日记包含她的兴趣、感受、疑问和愿望，也包含她与玩家的关系。
 
-## 四层架构
+| 用途 | 保存位置 | 使用方式 |
+| --- | --- | --- |
+| 原始素材 Buffer | SQLite `experience` | 保存逐轮原文、时间、会话、笔记、状态变化及行动来源 |
+| 日记 Diary | SQLite `diary` | 每个自然日一篇，可检索并继续读取原始来源 |
+| 事实账本 | SQLite `fact`、`fact_recall` | 保存原子事实、版本、来源和回顾权重 |
+| 持续状态 State | SQLite `memory_runtime` | 保存长期情绪、失衡度、未竟意愿和真实任务关联 |
 
-```
-┌─────────────────────────────────────────────┐
-│                  SYSTEM PROMPT               │
-│                                              │
-│  ┌───────────────────────────────────────┐   │
-│  │ CORE 层 (永久注入)                     │   │
-│  │ - 用户姓名、职业、第一次见面日期         │   │
-│  │ - Muika 的自我认知                     │   │
-│  │ - 用户明确表达的坚定偏好               │   │
-│  └───────────────────────────────────────┘   │
-│  ┌───────────────────────────────────────┐   │
-│  │ STATE 层 (Resume 注入，最多 3 条)       │   │
-│  │ - 上次聊到的主题                       │   │
-│  │ - 最近的情绪状态                       │   │
-│  │ - 未解决的问题                         │   │
-│  └───────────────────────────────────────┘   │
-│  ┌───────────────────────────────────────┐   │
-│  │ PREFERENCE 层 (按需检索)               │   │
-│  │ Butler 每轮语义匹配 → 仅注入相关偏好    │   │
-│  │ - 音乐口味、睡眠习惯、食物偏好          │   │
-│  └───────────────────────────────────────┘   │
-│  ┌───────────────────────────────────────┐   │
-│  │ ARCHIVE 层 (Resume 注入，最多 3 条)     │   │
-│  │ - "上次你们讨论了哲学话题..."          │   │
-│  │ - "上次是深夜聊天，氛围安静..."        │   │
-│  └───────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-```
+整理完成的素材退出待处理范围，原文继续作为冷记录保存。工作上下文压缩也不会删除原文。
+工具完整输出和附件复用 `data/agent_tasks`；对话附件保存在 `data/memory_resources`。
 
-## 各层详解
+## 日常行为
 
-### CORE 层 — 核心身份记忆
+普通会话结束只切换工作会话，不生成日记，也不改变事实权重。当天材料可以通过原文检索使用。
+`<memory>...</memory>` 和记忆工具只提交待整理笔记，不再判断 CORE 或 PREFERENCE。
 
-| 属性 | 值 |
-|------|-----|
-| **Enum** | `MemoryLayer.CORE` |
-| **注入时机** | 每次 System Prompt 构建，永久注入 |
-| **生命周期** | 手动 upsert/forget，无自动过期 |
-| **用途** | 稳定身份事实 |
+自动整理默认在本地时间 05:00 后进行，处理前一个自然日。活跃对话期间延后。
+启动后和进入空闲时检查积压，按日期顺序补做；没有经历的离线日期不会生成日记。
+整理在后台运行，新对话可以继续。后续日期的整理会在新对话活跃时延后。
 
-**示例记录**：
-```python
-# 用户名字
-await memory.upsert_memory(layer=CORE, category=USER, key="name", value="小明")
-# 第一次见面
-await memory.upsert_memory(layer=CORE, category=RELATION, key="first_met", value="2025-06-15")
-# Muika 自我认知
-await memory.upsert_memory(layer=CORE, category=SELF, key="preferred_name", value="Mui-chan")
-```
+`.reflect` 手动调用同一流程，并可整理今天已经发生的经历。`.session summarize` 也调用此入口。
+同一天的新素材会更新当天日记，失衡度只根据新增经历调整。重复触发而没有新素材时，不再次生成。
 
-### STATE 层 — 关系状态记忆
+每次整理使用 `SESSION_SUMMARIZE_MODEL`，输入当天素材、相关旧日记、事实和持续状态。
+长素材先按模型预算分块归纳，再生成当天日记。日记单独生成自我反思，不复制 `<heart>`。
+日记、事实版本、回顾次数、状态和处理进度在同一事务提交。失败时保留原进度，自动等待五分钟后重试。
 
-| 属性 | 值 |
-|------|-----|
-| **Enum** | `MemoryLayer.STATE` |
-| **注入时机** | 仅 Resume 模式，按 `updated_at` 降序，最多 3 条 |
-| **生命周期** | 可设 `expires_at`，过期后不再注入 |
-| **用途** | 时间敏感上下文 |
+## 事实权重
 
-**示例记录**：
-```python
-# 上次聊到一半的话题
-await memory.upsert_memory(
-    layer=STATE, category=RELATION,
-    key="last_topic", value="正在讨论养猫的事",
-    expires_at=datetime.now() + timedelta(days=3)
-)
+同一事实在同一日记日最多强化一次。只有明确回顾的事实，以及有当天来源的新事实或修正，才参与强化。
+仅出现在输入提示中的事实不会自动加权。
+
+权重半衰期为 90 天。先衰减旧权重，再为本次回顾加 1。补做旧日记时，这次强化也按经历日期衰减。
+权重表示经常被想起，不表示事实一定正确。
+
+常驻摘要按有效权重排序，同分时优先最近回顾的事实。默认最多 20 条，总预算 2,048 tokens。
+摘要直接使用原子事实。排名落后不会删除事实，仍可检索。
+已知的最早互动时间单独加入对话和行动的记忆提示，计入总预算，但不占事实条数或参与排名。
+
+事实键应包含主体和属性，例如 `master.favorite_drink`、`neighbor_alice.favorite_drink`。
+同名但不同主体必须使用不同键。修正保留旧版本但停止注入；新版本重新累计权重。
+明确失效的事实可撤下。补录较早素材不会覆盖来源更新的事实。
+
+## 情绪与动机
+
+`MuikaState.mood` 仍表示即时 calm／lonely／bored 驱动。持续情绪独立保存，不会被一条用户消息自动清除。
+主人格可以在正常回复中附带私有更新，不增加每轮状态模型调用：
+
+```text
+<state>{"mood":"still hurt, but hopeful","reason":"He apologized and understood why it hurt","intentions":[]}</state>
 ```
 
-### PREFERENCE 层 — 偏好档案
+更新先进行类型校验，再保存。没有更新就保留原状态。旧日记不能覆盖更新更晚的白天情绪。
+意愿包含稳定 `id`、`description` 和处理状态。对同一意愿复用 ID；完成行动后保留任务关联。
+任务回报不会重开已解决或已放下的意愿；她仍可通过状态更新主动重开。
 
-| 属性 | 值 |
-|------|-----|
-| **Enum** | `MemoryLayer.PREFERENCE` |
-| **注入时机** | **不默认注入**。每轮用户消息到达时，Butler 通过 LLM 做语义匹配 |
-| **生命周期** | 同 CORE，手动 upsert/forget |
-| **用途** | 软偏好，数量可能很大 |
+做梦时依据经历调整 0–1 的 `dissonance`。行动完成但尚无反馈时，最多缓解 0.05。
+进一步的正面反馈缓解必须引用用户经历。用户没有上线不代表拒绝。
 
-**工作流程**：
-1. 用户发送消息 → `ButlerAgent.fetch_relevant_preferences()` 被调用
-2. Butler 将所有 PREFERENCE 记录 + 用户消息发给轻量 LLM
-3. LLM 返回 `relevant_keys` — 与当前消息语义相关的偏好键名
-4. 匹配到的记录作为 `injected_preferences` 注入 System Prompt
+失衡度达到 0.6，且存在未处理意愿时，空闲阶段可以进入主人格思考，并复用主动行为冷却。
+她可以行动、观察、修改愿望或沉默。行动使用 `<agent intention_id="已有ID">指令</agent>` 关联真实任务。
+同一意愿不会重复派发新任务；继续已有行动应使用任务控制。
 
-这意味着如果用户说"好累"，Butler 可能会匹配到 `music: "喜欢安静的钢琴曲"` 和 `sleep: "晚上 11 点睡觉"`，但**不会**匹配到 `food: "喜欢麻辣火锅"`。
+日记整理只受 `ENABLE_AUTO_REFLECTION` 控制，与 `ENABLE_SELF_MODIFICATION` 无关。
+自我修改工具原有的开关、批准、验证和回退边界保持有效。
 
-### ARCHIVE 层 — 历史会话摘要
+## 检索与回查
 
-| 属性 | 值 |
-|------|-----|
-| **Enum** | `MemoryLayer.ARCHIVE` |
-| **注入时机** | Resume 模式，按 `period_end` 降序，最多 3 条 |
-| **生命周期** | 持久保留 |
-| **用途** | 跨 Session 关系延续 |
-
-**生成方式**：
-1. Session 结束（idle 30 分钟 或 `.session end`）
-2. Butler 调用 `summarize_session()` — 将对话记录压缩为日记式摘要
-3. 写入 ARCHIVE 层
-4. 下次 Resume 时注入最近 3 条
-
-## MemoryManager API
-
-### 写入
+自动检索使用现有 Agent 模型扩写关键词并解析日期，SQLite 筛选候选后再进行有限批量的语义判断。
+检索覆盖日记、事实和原文，不需要 embedding 服务或向量数据库。
+模型失败时返回可用的日期／关键词匹配，并明确标记降级。检索失败不表示这段经历没有发生。
 
 ```python
-from muika.core.memory import MemoryLayer, MemoryCategory
+from datetime import date
+from muika.core.memory import MemoryManager, MemoryQuery
 
-# Upsert（存在则覆盖）
-await memory.upsert_memory(
-    layer=MemoryLayer.CORE,
-    category=MemoryCategory.USER,
-    key="name",
-    value="小明",
-)
-
-# 带过期时间（仅 STATE 层有效）
-await memory.upsert_memory(
-    layer=MemoryLayer.STATE,
-    category=MemoryCategory.RELATION,
-    key="temp_topic",
-    value="正在聊周末计划",
-    expires_at=datetime.now() + timedelta(hours=24),
-)
+memory = MemoryManager()
+await memory.load()
+await memory.add_context("user", "那天下雨，我读了一首诗。")
+hits = await memory.search(MemoryQuery(terms=["诗"], start=date(2026, 9, 1)))
+if hits:
+    print(await memory.read_source(hits[0].ref))
 ```
 
-### 删除
+`experience:N` 提供原话、时间和相邻内容；`diary:N`、`fact:N` 提供来源入口。
+`context:hash` 读取压缩前材料，`task_output:task:call` 读取已存工具全文。
+较长结果通过 `offset` 分页。普通回查不返回 `<heart>`、思考正文或控制标签。
 
-```python
-await memory.forget_memory(
-    layer=MemoryLayer.CORE,
-    category=MemoryCategory.USER,
-    key="old_nickname",
-)
-```
+## 上下文预算
 
-### 读取
+每个 `ModelConfig` 独立设置 `context_window`，默认 131,072 tokens。
+这只是项目默认预算。实际服务窗口更小时，必须在对应模型配置中覆盖。
+`max_tokens` 保持输出额度含义；预算另计已配置的独立思考额度及协议余量。
 
-```python
-# 获取注入 System Prompt 的完整记忆文本
-prompt_text = memory.get_memory_prompt()
+预算覆盖人格提示、事实、持续状态、检索结果、历史、工具定义、结果和多模态资源。
+文本和资源使用保守估算，服务端的实际 tokenizer 与多模态计量可能不同。
+达到可用预算的 80% 时，尝试压缩较早完整回合，目标回到 60%。
+本地估算超限时通过 `warnings.warn` 发出 `ContextOverflowWarning`，仍发送完整请求，由模型服务决定能否接受。
+更换模型后重新计算预算；摘要和做梦使用各自模型的窗口。
+行动、检索和日记在下一次调用边界读取当前命名模型配置，包括只修改 `context_window` 或摘要模型的情况。
+已开始的模型请求继续使用原实例；配置更新不削减已选择的思考额度。
 
-# 获取 PREFERENCE 层全量（供 Butler 检索）
-prefs = memory.get_preference_records()
+工作摘要与日记分开，不进入事实账本，也不增加权重。保存摘要及覆盖范围后才替换工作历史。
+行动任务保留完整 `messages`，另存 `context_messages` 和覆盖位置作为模型工作视图。
+最新工具交互保留调用配对、签名和资源；超长正文可以形成带原文入口的摘要。
+服务明确报告长度超限时，进一步压缩并只重试模型请求一次，不重复执行工具。
+摘要目标长度与可用空间分开计算。摘要超过期望长度，但比原文短且仍在可用空间内，就直接使用。
+摘要请求失败、压缩空间不足或摘要为空、无法放进可用空间时，发出警告并保留原历史。
+主请求被服务端实际拒绝时仍返回失败，不静默截断当前请求。
 
-# 获取 ARCHIVE 层全量（供 Butler 按需使用）
-archives = memory.get_archives()
-```
+行动任务每轮通过同一入口准备和保存上下文，模型执行层不再重复压缩。
+失败后，同一模型配置下的输入增长至少 20% 才再次尝试；任务指令或模型配置变化会允许重新尝试。
+服务实际拒绝长度时，仍立即强制压缩一次。任务结束或进程重启后清除这项临时退避状态。
 
-## Prompt 构建逻辑
+DEBUG 日志分别记录 `[AgentTask]` 决策轮、`[Context]` 准备、`[ContextSummary]` 摘要、`[Model]` 请求和 `[Tool]` 工具耗时。
+模型日志包含首个响应块等待时间和服务返回的输入、输出、缓存 token 数。这些计时日志不写入提示或私有思考正文。
+默认 INFO 控制台显示系统当前状态、除 `time_tick` 外的事件，以及阅读、行动和日记整理等简短后台进展。
+耗时、token 用量和详细执行诊断仍使用 DEBUG，日志文件保留这些细节。
 
-`get_memory_prompt()` 的输出结构：
+### `memory.prepare_context()` 的过程
 
-```
-## User (Core Facts)
-- name: 小明
+1. 串行处理工作上下文压缩，记录当前会话编号，先把已保存的工作摘要加入系统提示。
+2. 从当前模型窗口扣除输出、独立思考及协议预留，估算整个请求的输入开销。
+3. 低于可用预算的 80% 就直接返回；`force=True` 时改用 60% 触发线。
+4. 以用户回合的起点划分历史，优先保留最近至少四条消息；空间不足时继续向后选择完整回合。
+5. 计算当前输入、保留历史和系统提示占用后，还能给摘要多少空间。
+6. 把旧工作摘要与待压缩回合交给摘要模型，保留经历编号、时间、未完成事项和行动结果。
+7. 得到有效摘要后，确认会话未切换，在数据库中保存摘要及覆盖的最大经历编号。
+8. 保存成功才移除内存视图中已覆盖的回合，返回新摘要与近期历史；原文仍在 SQLite。
 
-## Self (Core Facts)
-- preferred_name: Mui-chan
+预算不足或未得到可用摘要时，警告并保留完整历史。数据库保存失败或会话中途切换仍会报错，避免覆盖错误的恢复进度。
 
-## Relation (Core Facts)
-- first_met: 2025-06-15
+## 升级与接口迁移
 
-## Recent Relationship State
-- last_topic: 正在讨论养猫的事
+Core 在存在待执行迁移时，先用 SQLite backup API 保存一致性备份到数据库旁的 `backups/`。
+Alembic 创建新表；首次加载在事务内导入旧数据。旧表保留，便于回退。
 
-## Recent Session Archives
-- Session 2025-07-28 22:30:00: 你们讨论了...
-```
+- 旧 CORE／PREFERENCE 转入等基础权重的事实候选，不保留永久注入特权。
+- 旧 STATE 作为历史素材保留，不推断为当前数值情绪。
+- 旧 ARCHIVE 带 `legacy_archive` 来源标记，保留原日期，不冒充新日记。
+- 首次相遇、自省时间等元数据移入运行快照；首次新日记整理可以归并等价旧事实。
+- 没有保存过的旧对话原文无法恢复。
 
-- CORE 始终出现（如无记录则跳过整个分区）
-- STATE 和 ARCHIVE 仅在 Resume 模式（`is_first_session=False`）时出现
+`MemoryLayer`、`MemoryRecord`、`ArchiveEntry`、分类器和会话日记摘要接口已移除。
+用 `Fact`、`Diary`、`Experience`、`StateUpdate`、`RecallResult` 表达各类数据。
+`add_context()` 和 `new_session()` 必须 `await`。记忆笔记调用 `add_material("note", text)`。
+`forget_memory(category, key)` 撤下事实；它不删除已保存的对话原文。
 
-## 数据持久化
+`MAX_MEMORY_RECORDS`、`AGENT_TOOL_CONTEXT_CHARS`、`REFLECTION_COOLDOWN_HOURS` 已停用。
+上下文长度由每模型的 `context_window` 控制，日记进度由日期和素材范围控制。
 
-所有记忆通过 SQLAlchemy / aiosqlite 持久化到 `data/` 目录的 SQLite 数据库：
+用户 `templates/` 文件不会被覆盖。自定义模板请把 `injected_preferences` 改为 `recalled_memories.hits`，
+并参考内置模板加入状态更新和意愿标签说明。持续状态仍由 Brain 和 Agent 注入。
 
-| ORM 模型 | 表 | 对应层 |
-|----------|-----|--------|
-| `MemoryRecordORM` | `memory_records` | CORE / STATE / PREFERENCE |
-| `ArchiveRecordORM` | `archive_records` | ARCHIVE |
-
-数据库迁移使用 Alembic 管理（`muika/database/migrations/`）。
-
-## 记忆的自动产生
-
-Muika 能够在对话中**主动**产生记忆——她不需要用户"教"她记什么。
-
-1. Brain 在回复中插入 `<memory>用户的喜好是...</memory>` 标签
-2. Loop 提取标签内容 → `ButlerAgent.classify_and_store_memory()`
-3. Butler 调用 LLM 将原始内容分类为 `(layer, category, key)` 三元组
-4. 自动 upsert 到 MemoryManager
-
-这意味着 Muika 在对话中自然观察、记忆关于你的事情——就像一个有记性的人类一样。
+回退前先停止 Core 并备份当前数据库与 `data/` 文件。执行 Alembic downgrade 会移除新表；
+旧表仍在，但升级后形成的新记忆只能从当前备份恢复。

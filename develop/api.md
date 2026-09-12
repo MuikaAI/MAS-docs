@@ -11,14 +11,14 @@ class Muika:
     event_queue: asyncio.Queue
     """事件队列，接收来自 IPC 和调度的各类 Event"""
 
-    async def start(self):
-        """启动事件循环（asyncio background task）。"""
+    async def loop(self) -> None:
+        """运行核心事件循环。"""
 
-    async def push_event(self, event: Event):
+    async def create_event(self, event: Event) -> None:
         """向事件队列推送一个事件。"""
 ```
 
-**生命周期**：`CoreBootstrap` 创建 `Muika` 实例 → 调用 `start()` → 事件循环在后台持续运行直到 SIGTERM。
+**生命周期**：`CoreBootstrap` 创建 `Muika` 实例 → 在后台运行 `loop()` → 事件循环在后台持续运行直到 SIGTERM。
 
 ## MuikaBrain — 人格回复生成
 
@@ -28,14 +28,17 @@ class Muika:
 class MuikaBrain:
     async def generate_reply(
         self, event, state: MuikaState, memory: MemoryManager,
-        resources: list, injected_preferences: str
+        resources: list[Resource] | None = None,
+        recalled_memories: RecallResult | None = None,
+        adapters: list[AdapterInfo] | None = None,
+        god_mode: bool = False, now: datetime | None = None, task_context: str = ""
     ) -> str:
         """
         生成 Muika 的对话回复。
 
-        构建完整 System Prompt（模板 + 记忆 + 偏好），
+        构建完整 System Prompt（模板 + 记忆 + 检索结果 + 持续状态），
         调用 LLM 生成回复文本。返回的文本可能包含
-        <Butler:> 和 <memory> 标签。
+        <agent>、<memory> 和 <state> 等私有标签。
 
         :returns: 原始 LLM 回复文本
         """
@@ -46,7 +49,7 @@ class MuikaBrain:
         """
         将话题种子展开为自然的主动发言。
 
-        使用轻量级独立 Prompt，不包含 Butler 标签。
+        使用轻量级独立 Prompt，不包含 Agent 标签。
         包含时间感知的语调指引。
         """
 ```
@@ -91,101 +94,35 @@ class MuikaState:
         """
 ```
 
-## MemoryManager — 四层记忆
+## MemoryManager — 素材、事实、日记和状态
 
-`muika/core/memory.py`
+`muika/core/memory.py` 和 `memory_models.py` 提供显式数据类型。
 
 ```python
 class MemoryManager:
-    records: dict[str, MemoryRecord]
-    """CORE / STATE / PREFERENCE 层记忆"""
-
-    archives: list[ArchiveEntry]
-    """ARCHIVE 层 — 历史会话摘要"""
-
-    session: SessionState
-    """当前会话元信息（session_id, is_first_session, started_at）"""
-
+    facts: dict[int, Fact]
     recent_turns: deque[SessionTurn]
-    """当前 Session 的对话记录"""
 
-    async def load(self):
-        """从 DB 加载所有记忆。有历史数据则 is_first_session=False。"""
-
-    def new_session(self):
-        """创建新 Session（自动判断 first/resume）。"""
-
-    def add_context(self, role, content, resources=None):
-        """记录一条对话到 recent_turns。"""
-
-    async def upsert_memory(self, layer, category, key, value, expires_at=None):
-        """插入或覆盖一条记忆（自动持久化到 DB）。"""
-
-    async def forget_memory(self, layer, category, key):
-        """删除一条记忆（自动持久化到 DB）。"""
-
-    def get_memory_prompt(self) -> str:
-        """构建注入 System Prompt 的完整记忆上下文。"""
-
-    def get_preference_records(self) -> list[MemoryRecord]:
-        """返回所有 PREFERENCE 层记录，供 Butler 检索。"""
+    async def load(self) -> None: ...
+    async def new_session(self) -> None: ...
+    async def add_context(self, role, content, resources=None, *, timestamp=None, source=None) -> int: ...
+    async def add_material(self, kind, content, *, timestamp=None, resources=None, source=None) -> int: ...
+    async def update_state(self, update: StateUpdate) -> None: ...
+    async def forget_memory(self, category: MemoryCategory, key: str) -> None: ...
+    async def search(self, query: MemoryQuery, *, limit: int = 30) -> list[RecallHit]: ...
+    async def read_source(self, ref: str, *, offset: int = 0, limit: int = 6000) -> str: ...
+    def get_memory_prompt(self, budget: int = 2048) -> str: ...
 ```
 
-### 枚举类型
+`session` 返回当前会话元信息；`persistent` 返回长期情绪、失衡度和意愿。
+`MemoryCategory` 保留 `user`、`self`、`world`、`relation`。`MemoryLayer` 分类参数已移除。
+日记和工作摘要使用不同入口。完整说明见[记忆系统](./memory-system.md)。
 
-```python
-class MemoryLayer(str, Enum):
-    CORE = "core"           # 核心身份记忆
-    STATE = "state"         # 关系状态记忆
-    PREFERENCE = "preference"  # 偏好档案
-    ARCHIVE = "archive"     # 历史会话摘要
+## Agent — 行动半身
 
-class MemoryCategory(str, Enum):
-    USER = "user"           # 关于用户
-    SELF = "self"           # 关于自身
-    WORLD = "world"         # 世界/环境
-    RELATION = "relation"   # 关系/交互
-```
-
-## ButlerAgent — 管家 Agent
-
-`muika/core/butler/agent.py`
-
-```python
-class ButlerAgent:
-    async def execute_command(
-        self, command: str, state: MuikaState, executor: Executor
-    ) -> tuple[str, list[Resource]]:
-        """
-        执行 <Butler:> 标签中的自然语言命令。
-
-        将命令 + 所有注册工具传给 LLM，由 Provider 处理工具调用分发。
-        :returns: (报告文本, 资源列表)
-        """
-
-    async def fetch_relevant_preferences(
-        self, user_input: str, preferences: list[MemoryRecord]
-    ) -> list[MemoryRecord]:
-        """
-        语义匹配：返回与当前用户输入相关的偏好记录。
-        每轮用户消息到达时调用。
-        """
-
-    async def classify_and_store_memory(
-        self, content: str, state: MuikaState
-    ):
-        """
-        分类并存储 <memory> 标签中的原始记忆内容。
-        使用 LLM 将内容分类为 (layer, category, key)。
-        """
-
-    async def summarize_session(
-        self, turns: list[SessionTurn]
-    ) -> str:
-        """
-        生成会话日记摘要，供 ARCHIVE 层存储。
-        """
-```
+`muika/core/agent/agent.py` 组装行动提示。`AgentTasks` 负责持久任务、执行边界和结果事件。
+`MemoryReasoner.recall(question, memory)` 检索相关记忆；`dream(day, memory)` 整理当天日记。
+记忆笔记直接落库，不再调用分类模型。普通会话结束不调用日记模型。
 
 ## Executor — 消息执行器
 
@@ -193,14 +130,11 @@ class ButlerAgent:
 
 ```python
 class Executor:
-    async def send_message(self, content: str, resources=None):
+    async def send_message(self, message: str, resources=None, target: str | None = None) -> None:
         """
         分段发送长消息。在自然断点处分割（段落 → 中文标点），
         段间延迟 1.5 秒。资源仅附加到最后一段。
         """
-
-    async def schedule(self, intent) -> str:
-        """调度未来事件（延迟消息、提醒等）。"""
 ```
 
 ## TopicManager — 话题管理
@@ -209,16 +143,16 @@ class Executor:
 
 ```python
 class TopicManager:
-    async def get_next_topic(self, state: MuikaState) -> Optional[Topic]:
+    async def get_next_topic(self, state: MuikaState) -> Optional[BaseTopic]:
         """
         选择下一个主动话题。考虑：权重、冷却、近期惩罚、用户参与度。
         优先从 EventTopic 队列（RSS）选择，其次从静态话题库选择。
         """
 
-    async def record_topic_used(self, topic: Topic, user_engaged: bool):
+    async def record_topic_used(self, topic_id: str, *, user_engaged: bool) -> None:
         """记录话题使用历史（影响未来权重）。"""
 
-    async def enqueue_event_topic(self, topic: EventTopic):
+    def enqueue_event(self, topic: EventTopic) -> None:
         """将从 RSS 摘要生成的话题放入优先队列。"""
 ```
 
@@ -229,10 +163,11 @@ class TopicManager:
 ```python
 def on_function_call(
     description: str,
-    params: Optional[Type[BaseModel]] = None
+    params: Optional[Type[BaseModel]] = None,
+    *, read_only: bool = False
 ) -> Caller:
     """
-    将函数注册为 Butler Agent 可调用的工具。
+    将函数注册为 Agent 可调用的工具。
 
     函数签名自动转换为 LLM 的 JSON Schema 工具定义。
     """
@@ -251,8 +186,8 @@ def get_function_calls() -> dict[str, Caller]:
 ```python
 def on_alconna(
     alc: Alconna,
-    aliases: list[str] = [],
-    priority: int = 0
+    *, aliases: set[str] | None = None,
+    priority: int = 10
 ) -> CommandRegistry:
     """
     注册一个对话命令。

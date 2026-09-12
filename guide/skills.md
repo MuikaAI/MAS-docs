@@ -1,11 +1,11 @@
 # 技能系统
 
-技能（Skill）是 Muika 的"能力包"——一份包含完整指令的 Markdown 文件，告诉 Butler Agent **如何完成某项特定任务**。技能让 Muika-After-Story 的能力可以无代码扩展。
+技能（Skill）是 Muika 的"能力包"——一份包含完整指令的 Markdown 文件，告诉 Agent **如何完成某项特定任务**。技能让 Muika-After-Story 的能力可以无代码扩展。
 
 ## 快速理解
 
 - **技能 ≠ 工具**：工具（`@on_function_call`）提供原子操作（读文件、发通知）；技能提供完整的任务执行流程指引
-- **技能 = 知识注入**：技能内容被注入到 Butler 的 System Prompt 中，教会它"如何做"
+- **技能 = 知识注入**：技能内容被注入到 Agent 的 System Prompt 中，教会它"如何做"
 - **懒加载**：技能不会全部预载。先注入摘要列表，当任务涉及某技能时，通过 `load_skill` 工具按需加载完整内容
 
 ## 技能目录
@@ -57,9 +57,9 @@ description: 一句话描述这个技能做什么
 - 使用 `watchdog` 监听文件变化，支持热更新
 - 构建技能摘要列表
 
-### 2. 注入 Butler Prompt
+### 2. 注入 Agent Prompt
 
-技能摘要通过 `render_prompt_section()` 注入到 Butler 的 System Prompt 中：
+技能摘要通过 `render_prompt_section()` 注入到 Agent 的 System Prompt 中：
 
 ```
 ## Available Skills
@@ -69,4 +69,4 @@ description: 一句话描述这个技能做什么
 
 ### 3. 按需加载
 
-当 Butler 判断某个任务需要某技能时，它会调用 `load_skill` 工具读取完整的 `SKILL.md` 内容，获得详细的执行指引。
+当 Agent 判断某个任务需要某技能时，它会调用 `load_skill` 工具读取完整的 `SKILL.md` 内容，获得详细的执行指引。

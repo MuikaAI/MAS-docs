@@ -21,8 +21,8 @@ features:
     title: 主动行动
     details: 基于情绪状态机的自主行为系统，她会在想你的时候主动找你聊天，也会在好奇时自己探索世界。
   - icon: 🧠
-    title: 四层记忆
-    details: CORE / STATE / PREFERENCE / ARCHIVE 四层持久记忆系统，让她每次「醒来」都能接续之前的关系，而非从零开始。
+    title: 经历与日记
+    details: 保存原始经历、每日自省日记、事实和持续情绪，让她醒来后接续自己的生活与关系。
   - icon: 🔌
     title: 插件系统
     details: 基于 Alconna 的命令注册与 @on_function_call 工具装饰器，轻松扩展 Muika 的能力边界。

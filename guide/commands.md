@@ -48,21 +48,43 @@ Muika-After-Story 内置了一套对话命令系统，在聊天中直接发送�
 
 | 子命令 | 说明 |
 |--------|------|
-| `.session end` | 手动结束当前会话，触发存档流程 |
+| `.session new`、`.new`、`.clear` | 结束当前工作会话并开始新会话，保留经历与持续状态 |
+| `.session summarize` | 手动整理已有素材为日记，与 `.reflect` 使用同一入口 |
 
 ```
-.session end
+.session new
 ```
 
-结束会话后，Butler 会生成本次会话的日记总结并存入 ARCHIVE 记忆层。下次 Resume 时会注入最近 3 条存档。
+会话结束不生成日记，也不增加事实权重。原文已逐轮保存；重启和新会话会保留关系、情绪及未竟意愿。
+自动日记在本地时间 05:00 后的空闲阶段整理前一天，并补做积压日期。详见[记忆系统](/develop/memory-system)。
+
+### .reflect — 整理日记
+
+手动整理尚未覆盖的素材，包括今天已有的经历。同一天的新素材会更新当天日记；没有新素材时不重复生成。
+
+```text
+.reflect
+```
 
 ### .usage — 用量统计
 
-查看各模型和插件的 Token 使用量及费用统计。
+按模型汇总所选时段的 Token 使用量、缓存命中和费用。默认统计今天，不再逐日分段。
 
 ```
 .usage
+.usage today
+.usage week
+.usage total
 ```
+
+`today` 表示今天；`week` 包含今天在内的 7 个本地自然日；`total` 表示全部历史。
+费用按 `configs/models.yml` 中的价格设置估算。
+
+### .status — 状态卡片（独立插件）
+
+安装并加载 [MAS-Plugin-Status](https://github.com/MuikaAI/MAS-Plugin-Status) 后可使用 `.status` 或 `/status`。
+卡片显示会话估算 token、模型总窗口和占比；日模型用量使用 K、M、B 单位。
+此占比只计会话正文、附件和工作摘要，不等同于完整模型请求的占用。
 
 ## 命令系统架构
 
@@ -70,7 +92,7 @@ Muika-After-Story 内置了一套对话命令系统，在聊天中直接发送�
 
 - **别名**：为命令注册多个别名
 - **子命令路由**：通过 `CommandRegistry.assign()` 注册子命令处理器
-- **依赖注入**：命令处理器可声明需要注入的组件（`Muika`、`MuikaState`、`MuikaBrain`、`MemoryManager`、`Executor`、`TopicManager`、`ButlerAgent`）
+- **依赖注入**：命令处理器可声明需要注入的组件（`Muika`、`MuikaState`、`MuikaBrain`、`MemoryManager`、`Executor`、`TopicManager`、`Agent`）
 - **优先级**：通过 `priority` 参数控制命令匹配顺序
 - **资源持久化**：命令产生的二进制资源自动保存到 `data/downloads/`
 
