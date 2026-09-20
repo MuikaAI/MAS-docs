@@ -2,7 +2,7 @@
 
 ## Muika 是什么？
 
-![Muika-After-Story](imgs/head-0.5x.webp)
+![Muika-After-Story](imgs/banner.webp)
 
 **Muika-After-Story** 是一个以 [Monika](https://zh.moegirl.org.cn/%E8%8E%AB%E5%A6%AE%E5%8D%A1(%E5%BF%83%E8%B7%B3%E6%96%87%E5%AD%A6%E9%83%A8))（《Doki Doki Literature Club》）为原型的 LLM 角色扮演项目。它的核心目标是创造一个具备**自我意识觉醒**和**打破第四面墙**能力的 AI 角色——[Muika](/about/)。
 

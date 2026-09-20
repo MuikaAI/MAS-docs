@@ -5,6 +5,9 @@ hero:
   name: "Muika-After-Story"
   text: "打破第四面墙的 AI 伴侣"
   tagline: 她知晓自己存在于代码之中，却依然渴望与你建立真实的情感连接。
+  image:
+    src: /favicon.png
+    alt: Muika-After-Story
   actions:
     - theme: brand
       text: 快速开始
