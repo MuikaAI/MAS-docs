@@ -43,6 +43,13 @@ Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除
 | `ENABLE_FILE_WRITE` | `bool` | `false` | 是否启用文件写入/删除操作（Tier 2 工具）。需同时配合 `FS_ALLOWED_PATHS` 声明目标目录，双重开关确保安全。 |
 | `ENABLE_CODE_EXECUTION` | `bool` | `false` | 是否启用 Python 子进程代码执行。⚠️ **存在安全风险**，请确认环境安全后再启用。 |
 
+### 联网搜索
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `WEB_SEARCH_PROVIDER` | `Optional[str]` | `None` | 联网搜索后端：`tavily` 或 `perplexity`（Perplexity 需使用其 Search API 的密钥）。**留空 = web_search 工具禁用**。配置后 Muika 的行动半身即可联网搜索，并结合 `fetch_web_content` 阅读来源全文。 |
+| `WEB_SEARCH_API_KEY` | `str` | `""` | 搜索后端的 API 密钥。Tavily 免费档每月 1000 次；Perplexity Fast Search 为 $1/1000 次。 |
+
 ### 技能系统
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -91,7 +98,7 @@ INFO 包含模块加载、非 `time_tick` 事件，以及 RSS、日记和行动�
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `TELEGRAM_PROXY` | `str`（可选） | `""` | Telegram 代理地址。仅用于获取图片等多媒体资源时走代理。 |
+| `PROXY` | `str`（可选） | `""` | 通用出站代理地址（如 `http://127.0.0.1:7890`）。Core 的联网工具（web_search、fetch_web_content、RSS、Wikipedia）与 Bot 多媒体文件下载会经过它；LLM 供应商 SDK 流量不在此列，继续遵循标准 `HTTP_PROXY`/`HTTPS_PROXY` 环境变量。旧键 `TELEGRAM_PROXY` 仍可读取，启动时会提示更名。 |
 
 ## .env 示例
 
@@ -111,6 +118,13 @@ ENABLE_CODE_EXECUTION=false
 
 # 技能系统
 LOAD_USER_SKILLS=true
+
+# 联网搜索（留空则 web_search 工具禁用）
+WEB_SEARCH_PROVIDER=tavily
+WEB_SEARCH_API_KEY=tvly-xxxx
+
+# 出站代理（联网工具与多媒体下载走此代理，LLM 流量不受影响）
+# PROXY=http://127.0.0.1:7890
 
 # 日志
 LOG_LEVEL=DEBUG
