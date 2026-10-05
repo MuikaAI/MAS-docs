@@ -1,268 +1,189 @@
 # 多设备部署
 
-让 Muika 在电脑和服务器之间延续同一段对话。电脑关闭后，服务器上的 Muika 会继续陪你聊天。
-电脑重新连接时，她保留已有记忆、任务和提醒。电脑无需公网 IP。
+让 Muika 在电脑和服务器之间继续同一段关系。电脑关闭后，服务器继续处理对话；电脑重新连接时，两边补齐已有经历。
+电脑不需要公网 IP，只需主动连接服务器。
 
-如果只在一台电脑上使用 MAS，可以继续使用[单机部署](/guide/getting-started)，无需启用此功能。
+只在一台电脑使用 MAS 时，继续按[快速开始](/guide/getting-started)操作即可。以下配置均为可选配置。
 
-## 准备什么
+## 准备两台设备
 
-推荐使用一台 Linux 服务器和一台日常使用的电脑：
-
-| 位置 | 运行内容 | 用途 |
+| 位置 | 运行什么 | 用途 |
 | --- | --- | --- |
-| 服务器 | MAS 服务、聊天机器人 | 保存记忆，在电脑关闭后继续聊天 |
-| 电脑 | MAS 设备程序 | 让 Muika 使用电脑上的文件和程序，也可以承担对话工作 |
+| 常驻服务器 | 聊天入口、一个 Muika Core、聊天机器人 | 接收消息；电脑关闭后继续聊天 |
+| 日常电脑 | 一个 Muika Core | 平时聊天，使用电脑上的文件和程序 |
 
-两台机器均需安装 Python 3.10～3.13。本指南使用 Python 3.12 和虚拟环境。
-服务器需要可连接的地址，以及该地址对应的 TLS 证书和私钥。
-下面用 `mas.example.com` 作为示例，请替换成你的域名。
+Core 是运行 Muika 的程序。聊天入口负责连接各设备，保存已收到的事件。聊天机器人负责连接 QQ、Telegram 等聊天平台。
 
-聊天机器人负责把聊天平台上的消息交给 Muika。
-**要在电脑关机后继续聊天，机器人及其连接聊天平台所需的程序也必须运行在服务器上。**
-已有 QQ、Telegram 等接入方式可以继续使用；每个机器人单独配对。
+**电脑关闭后要继续聊天，机器人及其连接聊天平台所需的程序也必须保持运行。**
+可以使用现有接入方式和多个 Bot，各 Bot 仍负责识别你在对应平台的账号。
 
-::: warning 服务器仍需保持在线
-本方案使用一台服务器保存数据。服务器停机或无法连接时，Muika 暂时不能回复。
-仍在运行的机器人会保存收到的消息，恢复连接后再送达。
-聊天平台本身的故障、账号下线，以及机器人也已关闭的情况，不在此保证内。
-:::
+两台设备使用相同的 MAS 代码和 `IPC_SECRET`。密钥用于验证连接，不要公开。
+每台设备使用自己的 `data`、模型配置、人格模板和插件目录，不要用网盘同步正在运行的数据库。
 
-## 1. 安装服务器程序
+## 1. 启动常驻服务器
 
-在服务器上执行：
+按[快速开始](/guide/getting-started)安装 MAS，按[模型配置](/guide/model)准备 `configs/models.yml`。
+服务器与电脑各安装一份，不要共同打开同一个 SQLite 文件。
+
+在服务器项目目录创建 `.env`：
+
+```dotenv
+MASTER_ID=你的主账号ID
+IPC_SECRET=与你电脑相同的连接密钥
+GATEWAY_URL=ws://127.0.0.1:8765/cores
+CORE_NODE_NAME=server
+CORE_PRIORITY=0
+LOCAL_FALLBACK=false
+```
+
+在一个终端启动聊天入口：
 
 ```bash
-git clone https://github.com/Moemu/Muika-After-Story.git
-cd Muika-After-Story
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[standard]'
+python -m muika.ipc.gateway
 ```
 
-后续服务器命令都在这个项目目录和虚拟环境中执行。
-按[模型配置](/guide/model)创建 `configs/models.yml`，填入模型名称和 API Key。
-如需使用自定义人格，在启动前准备好 `.env` 和 `templates`，参见[人设定制](/guide/persona)。
-
-创建服务器配置。以下证书路径同样需要替换：
+看到 `Chat and Core connections are ready` 表示入口已开放。
+在另一个终端启动服务器上的 Muika：
 
 ```bash
-python -m muika.node init-server ./data/node-server \
-  --host 0.0.0.0 \
-  --address wss://mas.example.com:8766/node/ws \
-  --certificate /path/to/fullchain.pem \
-  --private-key /path/to/private-key.pem
+python -m muika.ipc.bootstrap --port 8767
 ```
 
-允许电脑访问服务器的 TCP 8766 端口。运行 MAS 的用户需要能够读取证书和私钥。
-如果已有 HTTPS 反向代理，可以省略 `--host` 和证书参数。
-此时将 `/node/` 转发到 `127.0.0.1:8766`，并启用 WebSocket 转发；连接地址改为代理提供的地址。
+两个程序都需要保持运行。Core 的 `8767` 端口只用于本机连接，不需要对外开放。
 
-**已有单机记忆需要保留时，先完成下方的[导入旧数据](#导入旧数据)，再启动服务。**
-全新部署可以直接启动：
+### 让电脑连接入口
+
+如果已有 HTTPS 反向代理，将整个入口转发到 `http://127.0.0.1:8765`，并开启 WebSocket 转发。
+需要转发 `/cores`、`/ws`、`/health` 和 `/attachments/`；上传大小限制至少为 20 MiB。
+公网连接使用 `wss://`，不要直接公开未加密的聊天入口。
+
+没有域名或反向代理时，可以先在电脑上使用 SSH 隧道：
 
 ```bash
-python -m muika.node serve ./data/node-server/server.json
+ssh -N -L 18765:127.0.0.1:8765 用户名@服务器地址
 ```
 
-看到 `State service ready` 表示服务器已开始监听。请保持程序运行，另开终端执行配对命令。
-服务器也会启动一个负责对话的 Muika 程序。
+保持这个终端运行。以下示例使用隧道地址；使用域名时，将地址换成 `wss://你的域名/cores`。
 
-需要开机自动启动时，可以使用仓库中的
-[systemd 示例](https://github.com/Moemu/Muika-After-Story/blob/main/deploy/mas-node.service)。
-请把用户、项目目录、Python 路径和数据目录改成实际值。
-证书更新后需要重启服务。
+## 2. 连接日常电脑
 
-## 2. 连接你的电脑
+保留电脑原有的模型、模板、插件和 `data`。在电脑 `.env` 中增加：
 
-先在服务器上生成配对码：
+```dotenv
+GATEWAY_URL=ws://127.0.0.1:18765/cores
+CORE_NODE_NAME=pc
+CORE_PRIORITY=100
+LOCAL_FALLBACK=true
+```
+
+`IPC_SECRET` 与服务器相同。然后按平时的方式启动 Core：
 
 ```bash
-python -m muika.node pair ./data/node-server/server.json pc --role core --priority 10
+python -m muika.ipc.bootstrap
 ```
 
-`pc` 是电脑的名称，可以自行修改。配对码在 10 分钟内有效，只能使用一次。
-请通过你信任的方式把配对码发送到电脑。
+首次连接会同步已有记忆。电脑同步完成后成为主要活动设备；服务器留在后台，收到已保存的经历和状态。
+同一份经历不会在备用设备上再次调用模型或执行工具。
 
-在 Windows 电脑上安装并连接：
-
-```powershell
-git clone https://github.com/Moemu/Muika-After-Story.git
-cd Muika-After-Story
-py -3.12 -m venv .venv
-.venv/Scripts/Activate.ps1
-pip install -e '.[standard]'
-python -m muika.node join wss://mas.example.com:8766/node/ws 配对码 ./data/node-pc
-python -m muika.node run ./data/node-pc/node.json
-```
-
-将命令中的 `配对码` 替换为服务器输出的代码。Linux 电脑也使用 `join` 和 `run`，安装方式与服务器相同。
-以后启动电脑程序时，只需在该目录执行最后一条命令。
-
-首次连接服务器时无需复制模型 API Key。模型配置和人格模板会从服务器提供给电脑。
-电脑上的文件、程序和工具权限仍需在电脑本地配置。
-
-电脑上线不会立即打断服务器正在进行的对话。要让她转到电脑工作，在聊天中发送：
-
-```text
-.nodes handoff pc
-```
-
-配对完成后，电脑和服务器都能承担对话工作。
-活动中的电脑退出或关机后，服务器会自动恢复对话，期间可能需要短暂等待。
-恢复需要重新读取记忆和任务，不保证立即回复。
+只有这台日常电脑设置 `LOCAL_FALLBACK=true`。其他设备保留 `false`，避免入口断开后每台设备都各自活动。
 
 ## 3. 连接聊天机器人
 
-以仓库自带的 NoneBot 机器人为例。
-先按[QQ 部署说明](https://github.com/Moemu/Muika-After-Story/blob/main/deploy/README.md)准备 QQ 接入，
-或保留已有聊天平台配置。机器人可以和 MAS 服务运行在同一台服务器上。
+机器人保留原有平台配置，只需调整连接 Muika 的地址：
 
-在 MAS 服务器上生成独立的机器人配对码：
-
-```bash
-python -m muika.node pair ./data/node-server/server.json qq --role bot
+```dotenv
+CORE_WS_URL=ws://127.0.0.1:8765/ws
+IPC_SECRET=与你各设备相同的连接密钥
 ```
 
-在机器人的项目目录中执行：
+这段配置适用于与入口运行在同一台服务器上的 Bot。其他位置的 Bot 使用其能够访问的入口地址。
+有多个 Bot 时，给每个 Bot 设置不同的 `CLIENT_NAME`。
 
-```bash
-pip install -e '.[nonebot]'
-python -m muika.node join wss://mas.example.com:8766/node/ws 配对码 ./data/node-qq
+如果电脑上也有本地 Bot，可以为它配置备用连接：
+
+```dotenv
+CORE_WS_URL=ws://127.0.0.1:18765/ws
+CORE_FALLBACK_URLS=["ws://127.0.0.1:8765/ws"]
 ```
 
-在机器人使用的 `.env` 中加入下面的配置，路径请替换成配对结果中的绝对路径：
+入口失联时，这个 Bot 会连接本机 Muika；入口恢复后会自动返回。服务器上的 Bot 无法连接已关闭的电脑，不能把电脑地址当作自己的可用备用地址。
 
-```ini
-NODE_PROFILE=/path/to/Muika-After-Story/data/node-qq/node.json
+聊天附件会上传到当前入口，并下载到使用它的设备。每个附件最多 20 MiB。
+临时文件和 Bot 事件中的二进制附件可通过这条路径保存；任务目录、完整工具输出和插件文件仍留在原设备。
+
+## 4. 查看和切换设备
+
+在聊天中发送：
+
+```text
+.nodes list
+.nodes handoff server
+.nodes handoff pc
+.nodes help
 ```
 
-保留你的用户 ID、聊天平台地址和适配器配置，然后启动原有机器人：
+列表会显示活动设备和可连接的设备。切换命令先显示请求结果，实际切换完成后，以活动设备状态为准。
+目标设备需要在线并完成同步。Muika 也能查看设备和请求交接，她会收到设备变化事件，并自行决定是否回应。
 
-```bash
-python bot.py
-```
+切换后，她使用新设备本地的工具、插件和权限。
+电脑上的文件不会因此出现在服务器上；正在执行的动作也不会移动到另一台设备。
+突然中断的动作会记录失败，可能已经产生的文件或其他影响需要在原设备查看，不会自动重做。
 
-设置 `NODE_PROFILE` 后，机器人从配对文件读取 MAS 地址和凭据。
-原来的 `CORE_WS_URL` 和 `IPC_SECRET` 不再用于这条连接。
-机器人运行在容器中时，请在容器内配对，并把配对目录挂载为持久目录。
-目录内既有连接凭据，也有尚未送达的消息；请保留它。
+多设备模式下创建的提醒会保存到本地日志。备用设备不运行提醒；接管后恢复尚未触发的提醒。
+普通时间流逝由每台设备本地计算，不会每隔几秒发送一次状态同步。
 
-其他机器人需要支持 MAS 的多设备连接协议。旧版适配插件只支持单机连接时，需要先更新插件。
-添加第二个机器人时，请使用不同名称重新执行配对，例如 `telegram`。
+## 断开和重新连接时会怎样
 
-## 4. 验证电脑关机后仍可聊天
-
-1. 从聊天平台发送一条消息，确认 Muika 能回复。
-2. 发送 `.nodes`，确认列表中能看到服务器和电脑。
-3. 发送 `.nodes handoff pc`，等待电脑成为活动设备，再确认一次回复。
-4. 关闭电脑上的 MAS 程序，等待服务器接管，再发送一条消息。
-5. 重新启动电脑程序，确认你们之前的对话仍然延续。
-
-服务器和聊天机器人需要全程保持运行。
-如果她能在第 4 步回复，电脑关闭后的聊天路径就已打通。
-
-## 选择工作设备
-
-| 聊天命令 | 作用 |
+| 情况 | 你会看到什么 |
 | --- | --- |
-| `.nodes` | 查看已连接的设备和 Muika 当前所在位置 |
-| `.nodes handoff pc` | 请求把对话工作交给电脑 |
-| `.nodes handoff server` | 请求把对话工作交给服务器 |
-| `.nodes select pc` | 让后续新行动任务使用电脑上的工具 |
+| 电脑关闭，服务器仍在线 | 服务器接管，聊天继续；电脑工具暂时不可用 |
+| 入口不可连接，电脑仍运行 | 指定电脑继续本地活动；配置了本地备用地址的 Bot 可继续聊天 |
+| 入口恢复 | 两边补齐经历，前台电脑保留当前感受；旧回复和旧动作不会重新发送或执行 |
+| 电脑与服务器之间的网络断开 | 两边可能各自留下经历，重连时保留两段历史 |
+| 电脑和服务器都关闭 | 没有运行中的 Muika，无法继续回复 |
+| 聊天平台或 Bot 停止运行 | 对应渠道无法聊天，其他仍在线的 Bot 可以继续使用 |
 
-交接会等待当前回复或动作保存完成。请求交接不代表已经完成，请通过 `.nodes` 确认结果。
-你也可以自然地向 Muika 提出请求；她可以选择设备，并感知设备上线或离线。
+服务器失联后，远端 Bot 无法凭空连接你的电脑。需要独立可用的本地 Bot 或其他本地接入方式，才能继续与电脑上的 Muika 对话。
+服务器保存的入口日志仍是单份数据；本方案不提供服务器的自动替换或数据库集群。
 
-已有任务保留原工作设备。电脑离线后，需要电脑上文件或程序的任务可能等待它恢复。
-服务器可以继续聊天，但不会因此获得电脑桌面、目录或 GPU 的访问能力。
-只需执行工具的额外设备，可以使用 `--role executor` 配对，再用 `join` 和 `run` 启动。
+入口会保存已收到的输入。Bot 尚未送达入口的消息只在内存暂存，最多 100 条；Bot 重启会丢失这些暂存消息。
+发送失败会记录错误日志。MAS 不等待聊天平台的投递确认，也不自动重发历史输出。
 
-## 导入旧数据
+## 用 Docker 启动服务器
 
-先停止原单机 MAS，在原项目目录执行：
+仓库提供服务器示例，包含聊天入口和一个服务器 Core。机器人按原有方式单独启动。
+先准备 `configs/models.yml`，在项目根目录创建 `.env.multi-device.local`：
 
-```bash
-python -m muika.node export ./data/muika.db ./mas-snapshot.zip
+```dotenv
+MASTER_ID=你的主账号ID
+IPC_SECRET=与你电脑相同的连接密钥
 ```
 
-把 `mas-snapshot.zip` 复制到服务器。在服务器配置创建后、第一次启动服务前导入：
+然后在项目根目录执行：
 
 ```bash
-python -m muika.node import ./mas-snapshot.zip ./data/node-server/server.json --accept-rollback-window
+docker compose -f deploy/multi-device.compose.yml up -d --build
+docker compose -f deploy/multi-device.compose.yml logs -f
 ```
 
-命令会核对记忆和文件，并保存 `import-report.json`。导入完成后，再启动服务器。
-如果提示缺少附件，请找回原文件后重新导出。目标已有数据库时，导入会拒绝覆盖。
+入口仅开放在服务器的 `127.0.0.1:8765`。电脑仍按上面的 SSH 隧道或 HTTPS 方式连接。
+数据保存在独立 Docker 卷中。`docker compose down` 不删除数据；不要加 `--volumes`，除非确实要清空记忆和入口记录。
 
-::: warning 先保留原数据
-原单机实例应保持停用，原数据库和附件应保留为备份。
-归档包含私密记忆和模型配置，请妥善保存。
-如果以后回到原版本，原备份无法包含迁移后产生的新对话。
-命令中的 `--accept-rollback-window` 表示你已理解这一回退限制。
-:::
+## 保留旧记忆与返回单机模式
 
-导入后沿用原部署的日历时区。Windows 服务器的系统时区需要与导入数据一致；Linux 服务器会自动应用保存的时区。
-直接升级单机 MAS 无需导入，也无需另外安装数据库服务。
+启用前，停止原 Core，备份整个 `data` 和自己的配置、模板、插件。
+本地数据库会进行常规结构升级。首次连接入口时，已有记忆会自动纳入同步，无需先把数据库迁到服务器。
 
-## 日常维护和排查
+要回到单机模式，停止 Core，删除 `.env` 中的 `GATEWAY_URL`，把 Bot 的 `CORE_WS_URL` 改回本机地址，再启动。
+已经同步到这台设备的经历仍在本地。多设备模式的持久提醒在单机模式中不会自动启动。
 
-**无法连接服务器：** 确认服务在运行、域名与证书相符、端口允许访问。
-连接地址应以 `wss://` 开头。自签名证书需要在初始化和配对时通过 `--ca-file` 指定信任文件。
+切回单机运行与降级 MAS 代码是两件事。要运行启用前的旧代码，请使用启用前的备份；旧代码不保证读取新数据库结构。
 
-**查看连接状态：** 在已配对设备的目录执行：
+## 排查连接问题
 
-```bash
-python -m muika.node status ./data/node-pc/node.json
-```
+先执行 `.nodes list`，再分别查看入口、Core 和 Bot 的日志。
+检查密钥是否一致、设备名称是否重复，以及 `/cores` 与 `/ws` 是否写反。
+名称重复或同步协议不兼容时，入口会明确拒绝连接。
 
-**服务器离线：** 先恢复原服务和数据目录。机器人保留的消息会在连接恢复后继续发送。
-不要用一个空数据库替代原记忆。定期备份整个服务器数据目录，备份前停止服务。
-
-**修改模型或人格配置：** 首次启动后，服务使用已保存的配置。
-编辑服务器项目中的 `.env`、`configs/models.yml` 或模板后，先停止服务，再发布并重启：
-
-```bash
-python -m muika.node publish-config ./data/node-server/server.json
-python -m muika.node serve ./data/node-server/server.json
-```
-
-其他电脑上的 MAS 程序也需要重启才能使用新配置。
-需要在多台设备上使用的项目技能，放在服务器的 `configs/skills` 中。
-本地安装的第三方插件不会自动复制；插件作者需要支持多设备模式后，才能在设备配置中启用。
-
-**升级：** 更新服务器、对话设备和工具设备上的 MAS，然后重启。
-版本不兼容的设备会被禁止接管或执行。机器人是否需要更新，取决于连接协议是否变化。
-
-**移除设备：** 在服务器上执行，设备名请替换成实际名称：
-
-```bash
-python -m muika.node revoke ./data/node-server/server.json pc
-```
-
-**消息投递结果不明：** 发送过程中连接断开时，Muika 可能无法确定平台是否已经收到消息。
-系统会暂停这条消息的重发。先停止对应机器人，核对聊天记录，再使用日志中的消息 ID：
-
-```bash
-python -m muika.node resolve-delivery ./data/node-qq/node.json 消息ID --outcome delivered
-```
-
-确认没有发出时，把 `delivered` 改为 `not-delivered`。核对后重新启动机器人。
-行动任务也会在动作结果不明时暂停，以免重复发送或重复修改文件。
-
-## 使用 Docker 运行服务器
-
-仓库提供[服务器镜像](https://github.com/Moemu/Muika-After-Story/blob/main/deploy/node.Dockerfile)
-和 [Compose 配置](https://github.com/Moemu/Muika-After-Story/blob/main/deploy/node-compose.yml)。
-此预设用于 Linux 服务器，并使用服务器已有的 HTTPS 反向代理。
-准备好项目 `.env`、`configs` 和 `templates` 目录后，在项目根目录执行：
-
-```bash
-docker compose -f deploy/node-compose.yml build
-docker compose -f deploy/node-compose.yml run --rm mas init-server /data --address wss://mas.example.com/node/ws
-docker compose -f deploy/node-compose.yml up -d
-docker compose -f deploy/node-compose.yml exec mas python -m muika.node pair /data/server.json pc --role core --priority 10
-```
-
-代理需将 `/node/` 转发到服务器的 `127.0.0.1:8766`，并支持 WebSocket。
-数据保存在项目的 `data/node-server` 中。容器中的 Muika 只能使用容器内实际可用的文件和工具。
+使用 SSH 隧道时，检查隧道终端是否仍在运行。使用 HTTPS 时，检查证书、WebSocket 转发和附件上传限制。
+只升级一台设备前，先停止相关 Core；建议所有 Core 与入口使用同一份代码，Bot 保持原有 IPC 消息格式。
