@@ -13,15 +13,21 @@
 ```
 Muika-After-Story/
 ├── muika/               # Core 核心——AI 逻辑、IPC、LLM、插件
-│   ├── core/            #   大脑 + 事件循环 + 状态机 + 记忆 + 管家
-│   ├── ipc/             #   WebSocket 通信协议
+│   ├── core/            #   主人格、事件循环、记忆、行动 Agent 与自身变更感知
+│   ├── ipc/             #   WebSocket IPC、进程监督、Gateway 与设备同步
 │   ├── plugin/          #   命令注册 + 工具装饰器 + 插件加载器
 │   ├── llm/             #   多模型适配层
-│   └── builtin_plugins/ #   内置命令 (.help .model .debug ...)
-├── muika_bot/           # Bot 适配层——Nonebot2 消息处理
-├── configs/             # 配置文件 (models.yml, topics.yml, skills/)
+│   ├── builtin_plugins/ #   内置命令 (.help .model .debug ...)
+│   ├── builtin_templates/ # 包内默认人格与行动模板
+│   └── builtin_skills/  # 包内默认技能
+├── muika_bot/           # Bot 适配层——NoneBot 消息处理
+├── configs/             # 模型配置与用户技能 (models.yml, skills/)
+├── templates/           # 用户人格模板覆盖
+├── data/                # 记忆、日记、任务、审查与运行记录
 ├── plugins/             # 用户插件目录
 └── core_main.py / bot.py  # 启动入口
 ```
 
-Core 进程拥有所有 AI 逻辑，Bot 进程负责对接聊天平台。两者通过 WebSocket IPC 通信——这意味着你可以为任何平台编写 Bot 适配器，而无需修改 Core。
+Core 运行 Muika 的对话、记忆和行动，Bot 负责接入聊天平台。单机模式下，两者直接通过 WebSocket IPC 通信；多设备模式通过常驻 Gateway 协调活动设备并同步经历。
+
+各设备保留自己的工具、插件和文件，已有经历和持续状态支撑关系延续。部署步骤见[快速开始](/guide/getting-started)与[多设备部署](/guide/multi-device)，组件职责见[架构概览](/develop/architecture)。

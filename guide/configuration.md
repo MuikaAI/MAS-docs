@@ -35,13 +35,26 @@ DeepSeek 存在**幻觉记忆**问题——模型可能在对话中凭空编造�
 Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除非用户明确要求否则不操作系统工具。相比 Monika/Muika 的人设，这些行为偏差属于明显的 OOC（角色偏离）。
 :::
 
-### 安全与权限
+### 行动范围
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `FS_ALLOWED_PATHS` | `List[str]` | `[]` | 文件系统工具的白名单目录列表。**空列表 = 全部禁用**。示例：`["D:/Documents", "D:/Downloads"]`。路径必须使用绝对路径。 |
-| `ENABLE_FILE_WRITE` | `bool` | `false` | 是否启用文件写入/删除操作（Tier 2 工具）。需同时配合 `FS_ALLOWED_PATHS` 声明目标目录，双重开关确保安全。 |
-| `ENABLE_CODE_EXECUTION` | `bool` | `false` | 是否启用 Python 子进程代码执行。⚠️ **存在安全风险**，请确认环境安全后再启用。 |
+| `ACTION_PERMISSION` | `str` | `write` | 行动权限：`read_only`、`write` 或 `self_modify`，能力见下表。 |
+| `CODE_REVIEW_MODE` | `str` | `auto` | `auto` 使用代码审查模型；`manual` 等待玩家审批。 |
+| `CODE_REVIEW_MODEL` | `str`（可选） | 空 | 代码审查所用模型配置名；留空使用行动模型。 |
+
+| 行动权限 | Muika 可以做什么 |
+| --- | --- |
+| `read_only` | 读取授权内容，执行审查通过的读取、搜索和计算命令 |
+| `write` | 增加授权目录内的文件写入、修改和删除 |
+| `self_modify` | 增加人格、技能、话题、插件修改和 Core 代码提案 |
+
+文件目录由 `FS_ALLOWED_PATHS` 指定。普通记忆、日记和运行记录的保存不受行动权限限制。
+代码审查会使用模型额度，也不提供操作系统隔离；Core 提案仍需经过自身的验证、审查和恢复流程。
+
+`ENABLE_FILE_WRITE`、`ENABLE_CODE_EXECUTION` 等旧权限开关不再用于选择行动范围。
+升级时若仍有旧开关且未设置 `ACTION_PERMISSION`，MAS 会以只读运行，并提示选择新权限。
 
 ### 联网搜索
 
@@ -69,6 +82,22 @@ Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除
 启动和空闲时会补做积压日期；`.reflect` 可以手动整理今天已有素材。
 此开关与自我修改开关无关。`REFLECTION_COOLDOWN_HOURS` 已停用。
 `MAX_MEMORY_RECORDS`、`AGENT_TOOL_CONTEXT_CHARS` 也已停用；改用每模型的 `context_window`。
+
+### 自身变更感知 {#self-change}
+
+Muika 可在启动时察觉版本、内核和插件变化，也可观察运行时的外部插件重载。
+检测先合并记录，等编辑停止后再投递感知事件；她可以回应，也可以选择沉默。
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `SELF_CHANGE_AWARENESS_ENABLED` | `true` | 启用内核和插件变更感知 |
+| `SELF_CHANGE_SETTLE_SECONDS` | `60` | 最后一次变更记录后，至少静默这些秒数 |
+| `SELF_CHANGE_MIN_INTERVAL_SECONDS` | `300` | 两次成功感知之间的最小间隔，单位为秒 |
+| `SELF_CHANGE_MAX_DEFER_SECONDS` | `86400` | 记录超过此账龄时优先投递；仍等待沉降、可用连接和维护期结束 |
+| `ENABLE_PLUGIN_HOT_RELOAD` | `false` | 监听用户插件目录；开启后可在运行时感知成功的外部重载 |
+
+她自己的修改只推进观察基线；玩家执行的插件命令重载属于已知操作。
+用户覆盖的人格模板和模型配置文件不在这项感知范围内。事件与记忆流程见[架构概览](/develop/architecture#自身变更感知)。
 
 ### 路径配置
 
@@ -112,9 +141,9 @@ AGENT_MODEL=deepseek
 # 文件系统白名单
 FS_ALLOWED_PATHS=["D:/Documents", "D:/Pictures"]
 
-# 安全开关
-ENABLE_FILE_WRITE=true
-ENABLE_CODE_EXECUTION=false
+# 行动权限与代码审查
+ACTION_PERMISSION=write
+CODE_REVIEW_MODE=auto
 
 # 技能系统
 LOAD_USER_SKILLS=true

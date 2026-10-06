@@ -46,10 +46,11 @@ python -m muika.ipc.gateway
 在另一个终端启动服务器上的 Muika：
 
 ```bash
-python -m muika.ipc.bootstrap --port 8767
+python core_main.py --port 8767
 ```
 
-两个程序都需要保持运行。Core 的 `8767` 端口只用于本机连接，不需要对外开放。
+两个程序都需要保持运行。`core_main.py` 负责监督 Core 的重启与启动失败恢复。
+Core 的 `8767` 端口只用于本机连接，不需要对外开放。使用 uv 安装时，在命令前加 `uv run --no-sync`。
 
 ### 让电脑连接入口
 
@@ -79,7 +80,7 @@ LOCAL_FALLBACK=true
 `IPC_SECRET` 与服务器相同。然后按平时的方式启动 Core：
 
 ```bash
-python -m muika.ipc.bootstrap
+python core_main.py
 ```
 
 首次连接会同步已有记忆。电脑同步完成后成为主要活动设备；服务器留在后台，收到已保存的经历和状态。
