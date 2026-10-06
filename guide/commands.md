@@ -103,3 +103,8 @@ Muika-After-Story 内置了一套对话命令系统，在聊天中直接发送�
 ## 开发自定义命令
 
 详见 [命令开发](/develop/command-dev)。
+
+## .nodes — 查看和切换设备
+
+使用多设备部署后，可以发送 `.nodes list` 查看活动设备，发送 `.nodes handoff server` 请求切换到服务器。
+`.nodes help` 显示用法。目标必须在线并完成同步；切换不会搬运运行中的动作或本地文件。

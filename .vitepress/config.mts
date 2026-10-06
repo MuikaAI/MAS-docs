@@ -28,6 +28,7 @@ export default defineConfig({
           items: [
             { text: '项目介绍', link: '/guide/introduction' },
             { text: '快速开始', link: '/guide/getting-started' },
+            { text: '多设备部署', link: '/guide/multi-device' },
             { text: '配置参考', link: '/guide/configuration' },
             { text: '模型配置', link: '/guide/model' },
             { text: '命令参考', link: '/guide/commands' },

@@ -4,7 +4,7 @@
 
 ## 环境要求
 
-- **Python** ≥ 3.12
+- **Python** 3.10～3.13，建议使用 3.12
 - **包管理器** — pip / PDM / uv 任选其一
 - **一个 LLM API Key** — 推荐 DeepSeek、Qwen 或 Gemini
 - **一个消息平台** — QQ（需 Nonebot2 适配器）、Telegram 等
@@ -24,7 +24,7 @@ cd Muika-After-Story
 
 ::: code-group
 ```bash [pip]
-pip install ".[standard,bot]"
+pip install ".[standard,nonebot]"
 ```
 
 ```bash [pdm]
@@ -32,7 +32,7 @@ pdm install
 ```
 
 ```bash [uv]
-uv sync
+uv sync --extra standard --extra nonebot
 ```
 :::
 
@@ -42,9 +42,9 @@ uv sync
 |----|------|
 | `dev` | 开发工具（pre-commit、pytest、Alembic 等） |
 | `standard` | 标准 LLM Provider（OpenAI、DashScope、Gemini 等） |
-| `bot` | Bot 侧依赖（Nonebot2 及适配器） |
+| `nonebot` | Bot 侧依赖（NoneBot 及适配器） |
 
-`pip install .` 仅安装核心依赖。使用 `pip` 时需显式指定 `.[dev,standard,bot]` 以获得完整功能。`pdm install` 和 `uv sync` 默认安装所有依赖组。
+`pip install .` 仅安装核心依赖。使用模型提供商和 NoneBot 时，需要安装 `standard` 和 `nonebot` 可选依赖。
 
 ## 配置
 
@@ -70,9 +70,9 @@ IPC_SECRET=your-secret-here
 编辑 `configs/models.yml`，填入你的 API Key。至少配置一个默认模型：
 
 ```yaml
-- name: deepseek
-  provider: openai_compatible
-  model: deepseek-chat
+deepseek:
+  provider: openai
+  model_name: deepseek-chat
   api_key: sk-your-api-key-here
   api_host: https://api.deepseek.com
   default: true
@@ -141,6 +141,7 @@ Bot 进程负责对接聊天平台，连接 Core 后将用户消息转发给 Cor
 
 ## 下一步
 
+- [多设备部署](/guide/multi-device) — 电脑关机后，通过服务器继续聊天
 - [配置参考](/guide/configuration) — 了解所有配置项
 - [人设定制](/guide/persona) — 自定义 Muika 的性格模板
 - [架构概览](/develop/architecture) — 深入理解系统设计

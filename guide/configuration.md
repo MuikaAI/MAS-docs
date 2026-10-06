@@ -129,3 +129,17 @@ WEB_SEARCH_API_KEY=tvly-xxxx
 # 日志
 LOG_LEVEL=DEBUG
 ```
+
+## 多设备连接
+
+这些配置留空或使用默认值时，MAS 继续单机运行。部署步骤见[多设备部署](/guide/multi-device)。
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `GATEWAY_URL` | 空 | Core 连接常驻入口的 `/cores` 地址 |
+| `CORE_NODE_NAME` | `pc` | 设备名称；同一入口中不能重复 |
+| `CORE_PRIORITY` | `0` | 接管优先级；数值越大越优先 |
+| `LOCAL_FALLBACK` | `false` | 入口失联后继续本地活动；仅在日常电脑开启 |
+| `CORE_FALLBACK_URLS` | `[]` | Bot 的备用 `/ws` 地址；主入口恢复后返回 |
+
+Core 与 Bot 继续使用已有的 `IPC_SECRET` 认证。`CORE_WS_URL` 是 Bot 地址，不能填 Core 的 `/cores` 地址。
