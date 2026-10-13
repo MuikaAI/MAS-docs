@@ -87,10 +87,23 @@ python -m pip install -e ".[standard,nonebot]"
 | 可选依赖 | 用途 |
 | --- | --- |
 | `standard` | DashScope、Gemini、Ollama、Azure 等模型服务的 SDK；OpenAI 兼容接口已包含在核心依赖中 |
-| `nonebot` | 仓库自带的 NoneBot Bot 与 OneBot v11 适配器 |
+| `nonebot` | 仓库自带的 NoneBot Bot、OneBot v11 适配器，以及 FastAPI、HTTPX、WebSocket 驱动依赖 |
 | `dev` | pre-commit、mypy、pytest 等开发工具；普通使用无需安装 |
 
-只运行 Core 或使用其他平台适配器时，可以省略 `nonebot`。其他 NoneBot 适配器需要单独安装。
+只运行 Core 或使用 AstrBot 等非 NoneBot 接入时，可以省略 `nonebot`。使用其他 NoneBot 适配器时，仍需安装 `nonebot`，再安装对应的平台包和驱动依赖。
+
+例如，Telegram 长轮询接入需要额外安装：
+
+```bash
+uv add --optional nonebot "nonebot-adapter-telegram==0.1.0b20"
+uv sync --extra standard --extra nonebot
+```
+
+`uv add` 会把依赖保存到当前实例的 `pyproject.toml`，并更新 `uv.lock`；后续同步环境会保留它们。
+使用 pip 时，运行 `python -m pip install "nonebot-adapter-telegram==0.1.0b20"`，并在实例的依赖文件中记录该包。
+仅用 `uv pip install` 临时安装的包，可能在下次 `uv sync` 时被移除。
+
+MAS 的 NoneBot 接入通过完整源码项目或 Docker 镜像运行。当前 Python wheel 只包含 Core 包，不包含 `bot.py` 和 `muika_bot`。
 
 ### 3. 配置身份与连接
 
@@ -105,6 +118,24 @@ CORE_WS_URL=ws://127.0.0.1:8765/ws
 ```
 
 将两处 `123456789` 替换为你的 QQ 号。其他平台使用对应账号 ID，并按适配器要求设置连接。
+
+`ENABLE_ADAPTERS` 是非空的 JSON 字符串数组，每项填写适配器模块名；省略时加载 OneBot v11。
+它只控制加载，不会安装依赖。驱动和平台凭据按适配器要求单独配置，支持范围还取决于 Alconna 的通用消息实现。
+配置格式错误、包未安装或导入失败时，Bot 会停止启动并报告原因。
+
+Telegram 长轮询示例：
+
+```dotenv
+MASTER_ID=你的Telegram数字用户ID
+SUPERUSERS=["你的Telegram数字用户ID"]
+DRIVER=~fastapi+~httpx
+ENABLE_ADAPTERS=["nonebot.adapters.telegram"]
+TELEGRAM_BOTS=[{"token":"你的BotToken"}]
+CLIENT_NAME=telegram
+CORE_WS_URL=ws://127.0.0.1:8765/ws
+```
+
+Telegram 接入无需 NapCat。Webhook、代理等选项见 [Telegram 适配器手册](https://github.com/nonebot/adapter-telegram/blob/beta/MANUAL.md)；其他平台见 [NoneBot 适配器文档](https://nonebot.dev/docs/advanced/adapter)。
 
 Core 启动时会生成缺失的 `IPC_SECRET` 并写入 `.env`。先启动 Core，再启动 Bot；分开部署时，两边必须使用相同密钥。
 默认模型在 `configs/models.yml` 中用 `default: true` 指定；`.env` 无需设置 `DEFAULT_MODEL`。
@@ -175,7 +206,7 @@ python bot.py
 
 ### 7. 接入聊天平台
 
-QQ 用户需要启动并登录 NapCat。手动接入或 Docker 部署见仓库的 [QQ Bot 部署指南](https://github.com/Moemu/Muika-After-Story/blob/main/deploy/README.md)。
+QQ 用户需要启动并登录 NapCat。Docker 部署及 QQ、Telegram 配置见仓库的 [Bot 部署指南](https://github.com/Moemu/Muika-After-Story/blob/main/deploy/README.md)。
 AstrBot 用户按[适配插件说明](https://github.com/MuikaAI/astrbot_plugin_mas)连接 Core；其他适配器使用相同的 IPC 地址和密钥。
 
 ## 首次对话 {#first-chat}
