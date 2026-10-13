@@ -55,13 +55,6 @@ my-model-name:
 | `incremental_output` | `bool` | `=stream` | DashScope：增量输出。 |
 | `extra_body` | `dict`（可选） | — | OpenAI：额外请求体参数。 |
 
-### 本地模型
-
-| 字段 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `model_path` | `str` | `""` | 本地模型路径。 |
-| `adapter_path` | `str` | `""` | 微调模型或适配器路径。 |
-
 ### 成本估算（每 1M Tokens）
 
 | 字段 | 类型 | 说明 |
@@ -128,17 +121,6 @@ ollama:
   provider: ollama
   model_name: qwen2.5:7b
   api_host: http://localhost:11434
-  stream: true
-```
-
-### Azure AI Inference
-
-```yaml
-azure:
-  provider: azure
-  model_name: your-deployment-name
-  api_key: xxxxxxxx
-  api_host: https://your-resource.services.ai.azure.com
   stream: true
 ```
 
