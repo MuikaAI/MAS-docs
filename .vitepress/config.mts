@@ -52,7 +52,6 @@ export default defineConfig({
             { text: '记忆系统', link: '/develop/memory-system' },
             { text: 'IPC 协议', link: '/develop/ipc' },
             { text: 'API 参考', link: '/develop/api' },
-            { text: '贡献指南', link: '/develop/contributing' }
           ]
         }
       ],
