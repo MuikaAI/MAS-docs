@@ -206,7 +206,7 @@ python bot.py
 
 ### 7. 接入聊天平台
 
-QQ 用户需要启动并登录 NapCat。Docker 部署及 QQ、Telegram 配置见仓库的 [Bot 部署指南](https://github.com/Moemu/Muika-After-Story/blob/main/deploy/README.md)。
+QQ 用户需要启动并登录 NapCat。Docker 部署及 QQ、Telegram 配置见 [Bot 部署](/guide/bot-deployment)。
 AstrBot 用户按[适配插件说明](https://github.com/MuikaAI/astrbot_plugin_mas)连接 Core；其他适配器使用相同的 IPC 地址和密钥。
 
 ## 首次对话 {#first-chat}

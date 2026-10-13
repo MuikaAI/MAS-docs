@@ -99,6 +99,7 @@ IPC_SECRET=与你各设备相同的连接密钥
 
 这段配置适用于与入口运行在同一台服务器上的 Bot。其他位置的 Bot 使用其能够访问的入口地址。
 有多个 Bot 时，给每个 Bot 设置不同的 `CLIENT_NAME`。
+使用 Docker 运行 Bot 时，按 [Bot 部署](/guide/bot-deployment)选择平台、构建镜像并启动。
 
 如果电脑上也有本地 Bot，可以为它配置备用连接：
 
@@ -170,6 +171,8 @@ docker compose -f deploy/multi-device.compose.yml logs -f
 
 入口仅开放在服务器的 `127.0.0.1:8765`。电脑仍按上面的 SSH 隧道或 HTTPS 方式连接。
 数据保存在独立 Docker 卷中。`docker compose down` 不删除数据；不要加 `--volumes`，除非确实要清空记忆和入口记录。
+
+该示例为 Core 设置了 190 秒退出宽限期。退出行为及单独运行容器的停止命令见 [Core 退出](/guide/bot-deployment#core-shutdown)。
 
 ## 保留旧记忆与返回单机模式
 

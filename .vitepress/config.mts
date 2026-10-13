@@ -28,6 +28,7 @@ export default defineConfig({
           items: [
             { text: '项目介绍', link: '/guide/introduction' },
             { text: '快速开始', link: '/guide/getting-started' },
+            { text: 'Bot 部署', link: '/guide/bot-deployment' },
             { text: '多设备部署', link: '/guide/multi-device' },
             { text: '配置参考', link: '/guide/configuration' },
             { text: '模型配置', link: '/guide/model' },
@@ -50,7 +51,8 @@ export default defineConfig({
             { text: '工具开发', link: '/develop/func-call-dev' },
             { text: '记忆系统', link: '/develop/memory-system' },
             { text: 'IPC 协议', link: '/develop/ipc' },
-            { text: 'API 参考', link: '/develop/api' }
+            { text: 'API 参考', link: '/develop/api' },
+            { text: '贡献指南', link: '/develop/contributing' }
           ]
         }
       ],
