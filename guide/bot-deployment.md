@@ -27,7 +27,13 @@ Compose 将 `.env` 作为环境变量和只读文件传入 Bot。文件挂载供
 
 ## 选择平台
 
-### QQ：默认 OneBot v11
+### OneBot V11 + NapCat
+
+本节使用 NoneBot2 的 OneBot V11 适配器（`nonebot.adapters.onebot.v11`）接入 QQ。该适配器实现的是通用的 OneBot V11 协议，不专属于 QQ；服务器端以 [NapCat](https://github.com/NapNeko/NapCatQQ) 为例，由它连接 QQ 并向上提供 OneBot V11 接口，也可以替换为其他 OneBot V11 实现。
+
+::: tip NapCat 许可
+`deploy/qq.compose.yml` 使用 NapCat 官方镜像 `mlikiowa/napcat-docker`。[NapCat](https://github.com/NapNeko/NapCatQQ) 由 NapNeko 开发维护，采用 [Limited Redistribution License](https://github.com/NapNeko/NapCatQQ/blob/main/LICENSE)（Copyright © 2024 Mlikoowa）：不得用于商业用途，再分发须附完整许可文本并标明来源与版权。本项目不分发 NapCat 包体，也不修改其程序。
+:::
 
 在 `.env` 中填写你的 QQ 号：
 

@@ -34,6 +34,8 @@ mas-launcher napcat
 
 Windows 向导会配置 NapCat 的 OneBot v11 反向 WebSocket 连接。其他平台按向导准备协议端；连接地址以启动器输出为准。
 
+NapCat 由 [NapNeko](https://github.com/NapNeko) 开发维护，使用前请阅读其 [Limited Redistribution License](https://github.com/NapNeko/NapCatQQ/blob/main/LICENSE)。启动器只引导 NapCat 官方渠道的安装，不随发布物分发其包体。
+
 检查实例与日志：
 
 ```bash
