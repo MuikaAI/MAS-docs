@@ -12,8 +12,8 @@ from muika.plugin.command import on_alconna
 
 # 注册命令
 register = on_alconna(
-    Alconna(".echo", Args["message", str]),
-    aliases=[".say"],
+    Alconna("echo", Args["message", str]),
+    aliases={"say"},
     priority=10,
 )
 
@@ -59,7 +59,7 @@ async def handler(*args, **kwargs):
 
 ```python
 register = on_alconna(
-    Alconna(".config",
+    Alconna("config",
         Args["action", str],
         Args["key", str],
         Args["value", str]
@@ -139,8 +139,8 @@ from arclet.alconna import Alconna, Args
 from muika.plugin.command import on_alconna
 
 register = on_alconna(
-    Alconna(".weather", Args["city#城市名", str]),
-    aliases=[".天气"],
+    Alconna("weather", Args["city#城市名", str]),
+    aliases={"天气"},
     priority=20,
 )
 

@@ -1,7 +1,6 @@
 # 快速开始
 
-本页介绍单机安装：平台适配器连接本机 Core，Muika 的记忆保存在本机。
-需要在电脑和服务器之间延续对话时，请在安装后阅读[多设备部署](/guide/multi-device)。
+在本机安装并运行 Muika。安装完成后，用 QQ 或 Telegram 等平台与她聊天。
 
 ## 准备工作
 
@@ -88,9 +87,9 @@ python -m pip install -e ".[standard,nonebot]"
 
 | 可选依赖 | 用途 |
 | --- | --- |
-| `standard` | DashScope、Gemini、Ollama、Azure 等模型服务的 SDK；OpenAI 兼容接口已包含在核心依赖中 |
+| `standard` | DashScope、Gemini、Ollama 等模型服务的 SDK；OpenAI 兼容接口已包含在核心依赖中 |
 | `nonebot` | 仓库自带的 NoneBot Bot、OneBot v11 适配器，以及 FastAPI、HTTPX、WebSocket 驱动依赖 |
-| `dev` | pre-commit、mypy、pytest 等开发工具；普通使用无需安装 |
+| `dev` | pre-commit、mypy、pytest 等开发工具；仅开发时需要 |
 
 只运行 Core 或使用 AstrBot 等非 NoneBot 接入时，可以省略 `nonebot`。使用其他 NoneBot 适配器时，仍需安装 `nonebot`，再安装对应的平台包和驱动依赖。
 
@@ -103,9 +102,6 @@ uv sync --extra standard --extra nonebot
 
 `uv add` 会把依赖保存到当前实例的 `pyproject.toml`，并更新 `uv.lock`；后续同步环境会保留它们。
 使用 pip 时，运行 `python -m pip install "nonebot-adapter-telegram==0.1.0b20"`，并在实例的依赖文件中记录该包。
-仅用 `uv pip install` 临时安装的包，可能在下次 `uv sync` 时被移除。
-
-MAS 的 NoneBot 接入通过完整源码项目或 Docker 镜像运行。当前 Python wheel 只包含 Core 包，不包含 `bot.py` 和 `muika_bot`。
 
 ### 3. 配置身份与连接
 
@@ -122,7 +118,6 @@ CORE_WS_URL=ws://127.0.0.1:8765/ws
 将两处 `123456789` 替换为你的 QQ 号。其他平台使用对应账号 ID，并按适配器要求设置连接。
 
 `ENABLE_ADAPTERS` 是非空的 JSON 字符串数组，每项填写适配器模块名；省略时加载 OneBot v11。
-它只控制加载，不会安装依赖。驱动和平台凭据按适配器要求单独配置，支持范围还取决于 Alconna 的通用消息实现。
 配置格式错误、包未安装或导入失败时，Bot 会停止启动并报告原因。
 
 Telegram 长轮询示例：
@@ -137,10 +132,10 @@ CLIENT_NAME=telegram
 CORE_WS_URL=ws://127.0.0.1:8765/ws
 ```
 
-Telegram 接入无需 NapCat。Webhook、代理等选项见 [Telegram 适配器手册](https://github.com/nonebot/adapter-telegram/blob/beta/MANUAL.md)；其他平台见 [NoneBot 适配器文档](https://nonebot.dev/docs/advanced/adapter)。
+Telegram 只使用适配器，不使用 NapCat。Webhook、代理等选项见 [Telegram 适配器手册](https://github.com/nonebot/adapter-telegram/blob/beta/MANUAL.md)；其他平台见 [NoneBot 适配器文档](https://nonebot.dev/docs/advanced/adapter)。
 
 Core 启动时会生成缺失的 `IPC_SECRET` 并写入 `.env`。先启动 Core，再启动 Bot；分开部署时，两边必须使用相同密钥。
-默认模型在 `configs/models.yml` 中用 `default: true` 指定；`.env` 无需设置 `DEFAULT_MODEL`。
+默认模型在 `configs/models.yml` 中用 `default: true` 指定。
 
 ### 4. 配置模型
 
@@ -189,8 +184,7 @@ python core_main.py
 ```
 :::
 
-`core_main.py` 使用独立父进程监督 Core，支持运行时重启和自改后的启动失败恢复。
-单机模式下，Core 在 `ws://127.0.0.1:8765/ws` 等待适配器连接。
+Core 默认在 `ws://127.0.0.1:8765/ws` 等待适配器连接。
 
 在另一个终端进入同一项目目录，使用同一 Python 环境启动 Bot：
 
@@ -220,7 +214,7 @@ Muika 也可以主动开口，具体时机取决于她的状态和已连接的�
 | --- | --- |
 | `.help` | 查看可用命令 |
 | `.model list` | 查看模型配置 |
-| `.model chat` | 切换到示例中的 `chat` 配置；其他配置使用对应名称 |
+| `.model load chat` | 切换到示例中的 `chat` 配置；其他配置使用对应名称 |
 | `.debug state` | 查看当前状态 |
 | `.session new` | 开始新会话，保留经历和持续状态 |
 | `.usage [today\|week\|total]` | 查看模型用量 |

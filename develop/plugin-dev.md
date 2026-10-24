@@ -79,8 +79,8 @@ from arclet.alconna import Alconna, Args
 from muika.plugin.command import on_alconna
 
 register = on_alconna(
-    Alconna(".mycommand", Args["arg", str]),
-    aliases=[".mc"],
+    Alconna("mycommand", Args["arg", str]),
+    aliases={"mc"},
     priority=10,
 )
 
@@ -96,10 +96,7 @@ async def handle(arg: str):
 ```python
 from muika.plugin.func_call import on_function_call
 
-@on_function_call(
-    description="执行某个操作",
-    params={"param1": "参数说明"}
-)
+@on_function_call(description="执行某个操作")
 async def my_tool(param1: str) -> str:
     return f"操作完成: {param1}"
 ```
@@ -110,8 +107,8 @@ async def my_tool(param1: str) -> str:
 from muika.plugin.loader import get_plugins
 
 plugins = get_plugins()
-for plugin in plugins:
-    print(f"{plugin.name} - {plugin.meta.description}")
+for package_name, plugin in plugins.items():
+    print(f"{package_name}: {plugin.name}")
 ```
 
 ## 插件开发最佳实践
@@ -119,4 +116,4 @@ for plugin in plugins:
 1. **一个插件一个目录**：不要在一个文件中混合多个插件
 2. **最小化依赖**：插件应尽可能少地依赖第三方包
 3. **处理异常**：工具函数中的异常会被 Agent 捕获并报告，不要让它 crash 整个 Core
-4. **尊重安全边界**：工具函数无法绕过 `FS_ALLOWED_PATHS` 和 `ENABLE_FILE_WRITE` 等全局安全开关
+4. **尊重安全边界**：工具函数无法绕过 `FS_ALLOWED_PATHS` 和 `ACTION_PERMISSION` 等全局安全设置

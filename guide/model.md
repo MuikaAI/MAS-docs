@@ -51,7 +51,6 @@ my-model-name:
 | `online_search` | `bool` | `false` | 启用原生联网搜索。 |
 | `content_security` | `bool` | `false` | 启用内容安全审核。 |
 | `enable_thinking` | `bool`（可选） | — | 启用思考模式。 |
-| `thinking_budget` | `int`（可选） | — | 思考 Token 预算。 |
 | `incremental_output` | `bool` | `=stream` | DashScope：增量输出。 |
 | `extra_body` | `dict`（可选） | — | OpenAI：额外请求体参数。 |
 
@@ -98,7 +97,6 @@ qwen:
   stream: true
   multimodal: false
   enable_thinking: true
-  thinking_budget: 4000
 ```
 
 ### Gemini（Google）
@@ -126,13 +124,7 @@ ollama:
 
 ## 热更新机制
 
-`ModelConfigManager` 使用 `watchdog` 监听 `configs/models.yml` 的文件变化：
-
-1. **修改即生效**：保存配置文件后，1 秒冷却期内触发重载
-2. **自动通知**：所有注册了监听器的组件（如 `MuikaBrain`）会收到新旧配置对比
-3. **无需重启**：模型切换完全在运行时完成
-
-你也可以在聊天中通过 `.model <name>` 或 `.model list` 命令手动切换模型。
+保存 `configs/models.yml` 后约 1 秒生效，不需要重启 Core。你也可以在聊天中通过 `.model load <name>` 或 `.model list` 命令手动切换模型。
 
 ## 多模型策略建议
 
@@ -145,14 +137,6 @@ ollama:
 
 ## 自动上下文压缩
 
-主人格、行动模型、工作摘要和做梦都按各自模型窗口检查请求。
-输入达到可用额度的 80% 时，压缩较早的完整对话或工具交互，目标回到 60%。
-输出、明确配置的独立思考额度和协议余量会先被预留。原始材料继续保存。
-多模态与文本 token 数是估算；服务仍拒绝长度时，只压缩并重试模型请求一次。
-压缩失败时警告并保留完整历史，继续主请求；服务端实际拒绝长度时仍返回失败。
+各模型按自己的 `context_window` 检查请求，达到预算时压缩较早的完整对话，原始材料继续保存。
 按服务实际窗口设置 `context_window`，不要依靠截断当前请求来避开限制。
-
-`SESSION_SUMMARIZE_MODEL` 同时用于工作摘要和每日做梦。工作摘要不会变成日记或强化事实。
-行动、检索、日记和摘要在下一次调用边界读取命名模型的新配置，包括只修改窗口的情况。
-有效摘要超过目标长度但仍在可用空间内时会直接使用；失败的行动压缩会等待明显新增内容再尝试。
-所选的私有思考深度保持不变。参见[记忆系统](../develop/memory-system.md)。
+`SESSION_SUMMARIZE_MODEL` 同时用于工作摘要和每日做梦。实现细节见[记忆系统](../develop/memory-system.md)。

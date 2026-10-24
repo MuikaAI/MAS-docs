@@ -4,9 +4,8 @@
 
 ## 快速理解
 
-- **技能 ≠ 工具**：工具（`@on_function_call`）提供原子操作（读文件、发通知）；技能提供完整的任务执行流程指引
-- **技能 = 知识注入**：技能内容被注入到 Agent 的 System Prompt 中，教会它"如何做"
-- **懒加载**：技能不会全部预载。先注入摘要列表，当任务涉及某技能时，通过 `load_skill` 工具按需加载完整内容
+- **技能 ≠ 工具**：工具提供读文件、发通知这类原子操作；技能提供完整的任务执行流程指引
+- **按需读取**：Muika 先看到技能摘要，遇到相关任务时再读取完整内容
 
 ## 技能目录
 
@@ -47,26 +46,6 @@ description: 一句话描述这个技能做什么
 | `name` | 是 | 技能唯一标识（kebab-case） |
 | `description` | 是 | 一句话描述，用于技能列表摘要 |
 
-## 工作原理
+## 使用技能
 
-### 1. 启动扫描
-
-`SkillManager` 在 Core 启动时扫描所有技能目录，解析每个 `SKILL.md` 的 YAML 前置元数据：
-
-- 验证 `name` 和 `description` 字段
-- 使用 `watchdog` 监听文件变化，支持热更新
-- 构建技能摘要列表
-
-### 2. 注入 Agent Prompt
-
-技能摘要通过 `render_prompt_section()` 注入到 Agent 的 System Prompt 中：
-
-```
-## Available Skills
-- my-skill: 一句话描述这个技能做什么
-- another-skill: ...
-```
-
-### 3. 按需加载
-
-当 Agent 判断某个任务需要某技能时，它会调用 `load_skill` 工具读取完整的 `SKILL.md` 内容，获得详细的执行指引。
+把包含 `SKILL.md` 的技能目录放进 `configs/skills/`，改动会自动生效。

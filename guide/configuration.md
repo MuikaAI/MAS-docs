@@ -14,7 +14,7 @@
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `AGENT_MODEL` | `str`（可选） | `""` | 行动与记忆检索使用的模型配置名。留空则与核心模型共用；旧键 `BUTLER_MODEL` 仍可读取。 |
+| `AGENT_MODEL` | `str`（可选） | `""` | 行动与记忆检索使用的模型配置名。留空则与核心模型共用。 |
 | `SESSION_SUMMARIZE_MODEL` | `str`（可选） | `""` | 工作摘要和日记整理使用的模型配置名。留空则使用 Agent 模型。 |
 
 ### 模型选型建议
@@ -53,9 +53,6 @@ Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除
 文件目录由 `FS_ALLOWED_PATHS` 指定。普通记忆、日记和运行记录的保存不受行动权限限制。
 代码审查会使用模型额度，也不提供操作系统隔离；Core 提案仍需经过自身的验证、审查和恢复流程。
 
-`ENABLE_FILE_WRITE`、`ENABLE_CODE_EXECUTION` 等旧权限开关不再用于选择行动范围。
-升级时若仍有旧开关且未设置 `ACTION_PERMISSION`，MAS 会以只读运行，并提示选择新权限。
-
 ### 联网搜索
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -80,8 +77,6 @@ Qwen 的生成行为过于保守——不会主动向用户表达占有欲、除
 
 `ENABLE_AUTO_REFLECTION=true` 默认在本地时间 05:00 后的空闲阶段整理前一天。
 启动和空闲时会补做积压日期；`.reflect` 可以手动整理今天已有素材。
-此开关与自我修改开关无关。`REFLECTION_COOLDOWN_HOURS` 已停用。
-`MAX_MEMORY_RECORDS`、`AGENT_TOOL_CONTEXT_CHARS` 也已停用；改用每模型的 `context_window`。
 
 ### 自身变更感知 {#self-change}
 
@@ -110,7 +105,7 @@ Muika 可在启动时察觉版本、内核和插件变化，也可观察运行�
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `IPC_SECRET` | `str` | `""`（自动生成） | Core 与 Bot 之间的预共享密钥。Bot 连接 WebSocket 时需通过 `X-Auth-Token` 请求头携带。留空时 Core 启动会自动生成随机 Token 并追加写入 `.env` 文件。 |
+| `IPC_SECRET` | `str` | `""`（自动生成） | Core 与 Bot 之间的预共享密钥。留空时 Core 启动会自动生成随机 Token 并追加写入 `.env` 文件。 |
 | `CORE_WS_URL` | `str` | `"ws://127.0.0.1:8765/ws"` | Core 进程的 WebSocket 地址。Bot 通过此地址连接 Core。如果 Core 和 Bot 不在同一台机器上运行，将 `127.0.0.1` 改为 Core 所在机器的 IP。 |
 
 ### 日志
@@ -118,16 +113,17 @@ Muika 可在启动时察觉版本、内核和插件变化，也可观察运行�
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `LOG_LEVEL` | `str` | `"INFO"` | 控制台日志阈值。INFO 显示系统活动；文件日志继续保存 DEBUG 诊断。 |
-| `MAS_LOG_ONLY` | `bool` | `false` | 仅输出 Muika 相关日志，不输出 NoneBot 核心日志。调试 Muika 自身行为时有用。 |
+| `MAS_LOG_ONLY` | `bool` | `false` | 只显示 Muika 相关日志。调试 Muika 自身行为时有用。 |
 
-INFO 包含模块加载、非 `time_tick` 事件，以及 RSS、日记和行动任务的简短进展。
-`time_tick`、请求耗时、token 用量、工具参数和执行细节保留在 DEBUG。
+INFO 显示系统活动，DEBUG 记录请求、工具和诊断细节。
 
 ### 平台相关
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `PROXY` | `str`（可选） | `""` | 通用出站代理地址（如 `http://127.0.0.1:7890`）。Core 的联网工具（web_search、fetch_web_content、RSS、Wikipedia）与 Bot 多媒体文件下载会经过它；LLM 供应商 SDK 流量不在此列，继续遵循标准 `HTTP_PROXY`/`HTTPS_PROXY` 环境变量。旧键 `TELEGRAM_PROXY` 仍可读取，启动时会提示更名。 |
+| `PROXY` | `str`（可选） | `""` | 通用出站代理地址（如 `http://127.0.0.1:7890`）。 |
+
+Core 的联网工具（web_search、fetch_web_content、RSS、Wikipedia）与 Bot 多媒体文件下载会经过该代理。LLM 供应商 SDK 继续遵循标准 `HTTP_PROXY`/`HTTPS_PROXY` 环境变量。
 
 ## .env 示例
 
@@ -172,3 +168,9 @@ LOG_LEVEL=DEBUG
 | `CORE_FALLBACK_URLS` | `[]` | Bot 的备用 `/ws` 地址；主入口恢复后返回 |
 
 Core 与 Bot 继续使用已有的 `IPC_SECRET` 认证。`CORE_WS_URL` 是 Bot 地址，不能填 Core 的 `/cores` 地址。
+
+## 升级说明
+
+- 旧权限开关 `ENABLE_FILE_WRITE`、`ENABLE_CODE_EXECUTION` 等不再用于选择行动范围。升级时若仍有旧开关且未设置 `ACTION_PERMISSION`，MAS 会以只读运行并提示选择。
+- `AGENT_MODEL` 的旧键 `BUTLER_MODEL`、`PROXY` 的旧键 `TELEGRAM_PROXY` 仍可读取。
+- `REFLECTION_COOLDOWN_HOURS`、`MAX_MEMORY_RECORDS`、`AGENT_TOOL_CONTEXT_CHARS` 已停用；上下文改由每个模型的 `context_window` 管理。

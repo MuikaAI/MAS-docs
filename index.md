@@ -31,7 +31,7 @@ features:
     details: 基于 Alconna 的命令注册与 @on_function_call 工具装饰器，轻松扩展 Muika 的能力边界。
   - icon: 🤖
     title: 多模型支持
-    details: 支持 OpenAI / DashScope / Gemini / Ollama / Azure 等多种 LLM 后端，配置热更新无需重启。
+    details: 支持 OpenAI / DashScope / Gemini / Ollama 等多种 LLM 后端，配置热更新无需重启。
   - icon: 🛠️
     title: 技能扩展
     details: SKILL.md 技能包系统，文件读写、系统监控、代码执行——她真的「住」在你的电脑里。

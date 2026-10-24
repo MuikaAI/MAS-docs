@@ -16,7 +16,7 @@ Muika-After-Story 的 Core 和 Bot 进程通过 WebSocket 传输 JSON 消息进�
 - **传输层**：WebSocket
 - **数据格式**：JSON
 - **认证**：`X-Auth-Token` HTTP Header（预共享密钥 `IPC_SECRET`）
-- **单连接**：Core 同时只接受一个 Bot 连接（单用户设计）
+- **多连接**：Core 按 `X-Client-Name` 请求头区分多个 Bot 连接；名称重复时拒绝新连接，未声明名称时自动分配。
 
 ## 消息信封
 

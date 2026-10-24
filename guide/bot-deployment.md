@@ -1,7 +1,6 @@
 # Bot 部署
 
 MAS 以完整 Bot 项目提供 NoneBot 接入。Core 管理对话、记忆和行动；Bot 连接聊天平台，并通过 IPC 与 Core 通信。
-默认镜像包含 OneBot v11，以及 FastAPI、HTTPX 和 WebSocket 驱动依赖。Telegram 等平台按需安装适配器，无需运行 NapCat。
 
 本页介绍 Docker 部署，命令均在 MAS 仓库根目录执行，需要 Docker 和 Docker Compose v2。
 使用源码运行时，按[手动安装](/guide/getting-started#manual)操作。
@@ -23,13 +22,13 @@ CORE_WS_URL=ws://host.docker.internal:8765/ws
 ```
 
 若 Core 在其他服务器或通过 Gateway 提供接入，填写对应聊天入口地址。
-Compose 将 `.env` 作为环境变量和只读文件传入 Bot。文件挂载供 NoneBot 读取适配器自定义配置；`data/` 保存运行数据和协议确认记录。
+`.env` 由 Compose 传入容器；`data/` 保存运行数据和协议确认记录。
 
 ## 选择平台
 
 ### OneBot V11 + NapCat
 
-本节使用 NoneBot2 的 OneBot V11 适配器（`nonebot.adapters.onebot.v11`）接入 QQ。该适配器实现的是通用的 OneBot V11 协议，不专属于 QQ；服务器端以 [NapCat](https://github.com/NapNeko/NapCatQQ) 为例，由它连接 QQ 并向上提供 OneBot V11 接口，也可以替换为其他 OneBot V11 实现。
+本节使用 NoneBot2 的 OneBot V11 适配器（`nonebot.adapters.onebot.v11`）接入 QQ。服务器端以 [NapCat](https://github.com/NapNeko/NapCatQQ) 为例，由它连接 QQ 并向上提供 OneBot V11 接口；也可以替换为其他 OneBot V11 实现。
 
 ::: tip NapCat 许可
 `deploy/qq.compose.yml` 使用 NapCat 官方镜像 `mlikiowa/napcat-docker`。[NapCat](https://github.com/NapNeko/NapCatQQ) 由 NapNeko 开发维护，采用 [Limited Redistribution License](https://github.com/NapNeko/NapCatQQ/blob/main/LICENSE)（Copyright © 2024 Mlikoowa）：不得用于商业用途，再分发须附完整许可文本并标明来源与版权。本项目不分发 NapCat 包体，也不修改其程序。
@@ -88,13 +87,13 @@ docker compose --env-file .env -f deploy/docker-compose.yml up -d muika-bot
 
 安装适配器包、加载模块和配置平台连接是三个步骤：
 
-1. 用 `BOT_EXTRA_DEPENDENCIES` 指定要安装的包，多个包以空格分隔，建议固定版本。更改后重新构建镜像。
+1. 镜像已包含 OneBot v11 适配器与驱动依赖。用 `BOT_EXTRA_DEPENDENCIES` 指定要追加的适配器包，多个包以空格分隔，建议固定版本；更改后重新构建镜像。
 2. 用 `ENABLE_ADAPTERS` 指定已安装适配器的模块名，例如 `["nonebot.adapters.telegram"]`。
 3. 按适配器手册配置 `DRIVER`、平台凭据和连接参数。驱动所需的可选依赖也放入构建依赖。
 
-`ENABLE_ADAPTERS` 必须是非空 JSON 字符串数组；省略时加载 OneBot v11。加载配置不会安装包或切换驱动。
+`ENABLE_ADAPTERS` 必须是非空 JSON 字符串数组，只决定加载哪些已安装适配器；省略时加载 OneBot v11。安装适配器包用 `BOT_EXTRA_DEPENDENCIES`。
 适配器还需受 Alconna 通用消息接口支持；能被 NoneBot 注册不代表所有平台功能都可用。
-`BOT_EXTRA_DEPENDENCIES` 只传公开依赖规格，不用于传递凭据；Token 等配置留在运行时 `.env` 中。
+`BOT_EXTRA_DEPENDENCIES` 只填写包规格，Token 等凭据放在运行时 `.env` 中。
 镜像默认依赖使用仓库的 `uv.lock`。额外包与这些版本冲突时，构建会报错；需先在实例源码中用 `uv add` 更新并验证锁文件，再构建镜像。
 
 直接构建镜像时，可使用相同构建参数：

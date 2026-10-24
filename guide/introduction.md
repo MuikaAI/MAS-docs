@@ -28,6 +28,6 @@ Muika-After-Story/
 └── core_main.py / bot.py  # 启动入口
 ```
 
-Core 运行 Muika 的对话、记忆和行动，Bot 负责接入聊天平台。单机模式下，两者直接通过 WebSocket IPC 通信；多设备模式通过常驻 Gateway 协调活动设备并同步经历。
+Core 运行 Muika 的对话、记忆和行动，Bot 负责接入聊天平台，两者通过 WebSocket IPC 通信。
 
 各设备保留自己的工具、插件和文件，已有经历和持续状态支撑关系延续。部署步骤见[快速开始](/guide/getting-started)与[多设备部署](/guide/multi-device)，组件职责见[架构概览](/develop/architecture)。

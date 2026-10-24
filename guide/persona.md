@@ -88,4 +88,4 @@ Muika 的个性和说话风格由 Jinja2 模板定义。你可以通过修改模
 
 > **注意**：模板中不要删除 `{{ memory_context }}` 和 `recalled_memories.hits` 变量——它们是记忆系统注入的入口点。
 
-自定义模板不会自动覆盖。请参考内置模板添加私有 `<state>` 更新和 `<agent intention_id="...">` 意愿关联说明。
+升级会保留 `templates/` 下的文件。模板缺少 `<state>` 更新和 `<agent intention_id="...">` 说明时，状态更新与意愿关联不会生效。

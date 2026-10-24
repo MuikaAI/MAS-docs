@@ -124,14 +124,12 @@ async def current_mood(state: MuikaState) -> str:
 - `list_processes`、`get_focused_window`、`get_system_status` — 系统信息
 - `read_clipboard` — 剪贴板只读
 
-### Tier 2 — 写入操作（需配置开关）
+### Tier 2 — 写入与执行操作（需行动权限）
 
-- `write_file`、`edit_file`、`delete_file` → 需 `ENABLE_FILE_WRITE=true` + `FS_ALLOWED_PATHS` 白名单
-- `execute_python` → 需 `ENABLE_CODE_EXECUTION=true`
-- `execute_shell` → 需 `ENABLE_SHELL_EXECUTION=true`
+- `write_file`、`edit_file`、`delete_file`、`execute_python`、`execute_shell` 需要 `ACTION_PERMISSION` 允许写操作，并通过代码审查；文件写入还要求 `FS_ALLOWED_PATHS` 非空且目标在授权目录内。
 - `send_desktop_notification` → 桌面通知
 
-**双重安全闸门**：Tier 2 工具在函数内部检查全局开关，即使 LLM 试图调用，也会被拒绝执行。
+**执行边界**：执行层按 `ACTION_PERMISSION` 与代码审查放行；文件工具会拒绝白名单外的路径。
 
 ## 编写安全工具的最佳实践
 
@@ -143,17 +141,12 @@ from muika.llm.utils.tools import ToolError
 
 @on_function_call(description="写入内容到文件")
 async def write_file(path: str, content: str) -> str | ToolError:
-    # 1. 检查全局开关
-    if not mas_config.enable_file_write:
-        return ToolError("File writing is disabled.")
-
-    # 2. 路径白名单验证
+    # 路径必须在 FS_ALLOWED_PATHS 内；能否执行由 ACTION_PERMISSION 与代码审查决定
     allowed = [Path(p).resolve() for p in mas_config.fs_allowed_paths]
     target = Path(path).resolve()
     if not any(target.is_relative_to(directory) for directory in allowed):
         return ToolError("The path is outside the allowed directories.")
 
-    # 3. 执行操作
     target.write_text(content, encoding="utf-8")
     return f"文件已写入: {path}"
 ```

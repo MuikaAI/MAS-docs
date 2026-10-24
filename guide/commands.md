@@ -19,11 +19,11 @@ Muika-After-Story 内置了一套对话命令系统，在聊天中直接发送�
 | 子命令 | 说明 |
 |--------|------|
 | `.model list` | 列出 `configs/models.yml` 中所有可用的模型配置，并标注当前使用的模型 |
-| `.model <name>` | 切换到指定的模型配置，如 `.model deepseek` |
+| `.model load <name>` | 切换到指定的模型配置，如 `.model load deepseek` |
 
 ```
 .model list
-.model deepseekflash
+.model load deepseekflash
 ```
 
 模型切换即时生效，下一次对话将使用新模型。
@@ -36,7 +36,7 @@ Muika-After-Story 内置了一套对话命令系统，在聊天中直接发送�
 |--------|------|
 | `.debug state` | 查看当前情绪状态：mood、loneliness、boredom、curiosity、attention |
 | `.debug state-set <param> <value>` | 手动设置情绪参数值 |
-| `.debug topic` | 查看当前活跃话题和话题历史 |
+| `.debug topic` | 立即触发一次话题管线，可能主动发言 |
 | `.debug topic-reset` | 重置话题系统状态 |
 
 ```
@@ -68,7 +68,7 @@ Muika-After-Story 内置了一套对话命令系统，在聊天中直接发送�
 
 ### .usage — 用量统计
 
-按模型汇总所选时段的 Token 使用量、缓存命中和费用。默认统计今天，不再逐日分段。
+按模型汇总所选时段的 Token 使用量、缓存命中和费用。默认统计今天。
 
 ```
 .usage
@@ -98,7 +98,7 @@ Muika-After-Story 内置了一套对话命令系统，在聊天中直接发送�
 
 ## 命令前缀
 
-命令以 `.` 或 `/` 开头。Bot 进程在检测到这两种前缀时，会将消息作为 `CommandEvent` 发送给 Core，不经 Brain 处理。
+命令以 `.` 或 `/` 开头，不会被当作普通聊天消息处理。
 
 ## 开发自定义命令
 
