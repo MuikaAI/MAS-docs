@@ -99,7 +99,7 @@ docker compose --env-file .env -f deploy/docker-compose.yml up -d muika-bot
 直接构建镜像时，可使用相同构建参数：
 
 ```bash
-docker build -f deploy/bot.Dockerfile --build-arg 'BOT_EXTRA_DEPENDENCIES=nonebot-adapter-telegram==0.1.0b20' -t muika-bot:telegram .
+docker build -f deploy/Dockerfile --build-arg 'BOT_EXTRA_DEPENDENCIES=nonebot-adapter-telegram==0.1.0b20' -t muika-bot:telegram .
 ```
 
 ## 更新与排查

@@ -152,19 +152,27 @@ CORE_FALLBACK_URLS=["ws://127.0.0.1:8765/ws"]
 
 ## 用 Docker 启动服务器
 
-仓库提供服务器示例，包含聊天入口和一个服务器 Core。机器人按原有方式单独启动。
-先准备 `configs/models.yml`，在项目根目录创建 `.env.multi-device.local`：
+仓库提供服务器示例，包含聊天入口、一个服务器 Core 和聊天机器人，三个容器共用同一镜像，直接使用项目根目录的 `.env` 作为共享配置。
+先准备 `configs/models.yml`，确认项目根目录 `.env` 中已有 `MASTER_ID` 和与电脑相同的 `IPC_SECRET`：
 
 ```dotenv
 MASTER_ID=你的主账号ID
 IPC_SECRET=与你电脑相同的连接密钥
 ```
 
+机器人的平台配置也写在 `.env` 中，按 [Bot 部署](/guide/bot-deployment)填写；OneBot 之外的适配器包用构建参数 `BOT_EXTRA_DEPENDENCIES` 追加。服务器上的 Bot 由 Compose 自动设置容器网络内的入口地址，无需手写 `CORE_WS_URL`。不需要聊天机器人时，用 `docker compose -f deploy/multi-device.compose.yml stop bot` 停止它。
+
 然后在项目根目录执行：
 
 ```bash
 docker compose -f deploy/multi-device.compose.yml up -d --build
 docker compose -f deploy/multi-device.compose.yml logs -f
+```
+
+服务器以 Caddy 等外部反向代理收发连接时，追加站点级覆盖文件，把入口接入代理所在的网络：
+
+```bash
+docker compose -f deploy/multi-device.compose.yml -f deploy/multi-device.edge.yml up -d --build
 ```
 
 入口仅开放在服务器的 `127.0.0.1:8765`。电脑仍按上面的 SSH 隧道或 HTTPS 方式连接。
