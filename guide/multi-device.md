@@ -165,14 +165,14 @@ IPC_SECRET=与你电脑相同的连接密钥
 然后在项目根目录执行：
 
 ```bash
-docker compose -f deploy/multi-device.compose.yml up -d --build
+docker compose --env-file .env -f deploy/multi-device.compose.yml up -d --build
 docker compose -f deploy/multi-device.compose.yml logs -f
 ```
 
 服务器以 Caddy 等外部反向代理收发连接时，追加站点级覆盖文件，把入口接入代理所在的网络：
 
 ```bash
-docker compose -f deploy/multi-device.compose.yml -f deploy/multi-device.edge.yml up -d --build
+docker compose --env-file .env -f deploy/multi-device.compose.yml -f deploy/multi-device.edge.yml up -d --build
 ```
 
 入口仅开放在服务器的 `127.0.0.1:8765`。电脑仍按上面的 SSH 隧道或 HTTPS 方式连接。
